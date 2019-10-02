@@ -2,35 +2,12 @@
 
 import re
 import astropy.units as u
+from .fformat import FortranFormatter, Flags, Formatter, FortranDFormatter, FortranZFormatter
 
 u_Rsol = u.Unit("6.95660e5 km")
 
 
-class Formatter(object):
 
-    def __init__(self, fmt=None, fixlen=None):
-        super(Formatter, self).__init__()
-        if fmt:
-            self.fmt = fmt
-        else:
-            self.fmt = '{}'
-        self.fixlen = fixlen
-
-    def format(self, val):
-        return self.fmt.format(val)
-
-class FortranZFormatter(Formatter):
-    """used FORTRAN formatting without leading zero e.g. f4.3: .123 instead of 0.123"""
-    def format(self, val):
-        s = super(FortranZFormatter, self).format(val)
-        if self.fixlen and len(s) > self.fixlen:
-            s = re.sub('0\.', '.', s)
-        return s
-
-class FortranDFormatter(FortranZFormatter):
-    """used FORTRAN formatting had letter 'd' as exponential delimiter"""
-    def format(self, val):
-        return super(FortranDFormatter, self).format(val).replace('e', 'd')
 
 class F:
     """Namespace to encapsulate FORTRAN formatters"""
@@ -153,7 +130,7 @@ class MPAGE(IntParameter):
     help_str = 'type of output'
     min, max = 1, 5
     help_val = {1: 'light curves', 2: 'velocity curves', 3: 'line profiles', 4: 'radii vs. phase', 5: 'pictures'}
-    fmt_lcin = F.i1
+    fmt_lcin = FortranFormatter('i', 1)
     nan_value = 9
 
 
@@ -163,7 +140,7 @@ class NREF(IntParameter):
     More reflections use more computing time. If MREF=1, the value of NREF is irrelevant."""
     help_str = 'number of reflections'
     min = 1
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 
 class MREF(IntParameter):
@@ -173,13 +150,13 @@ class MREF(IntParameter):
     help_str = 'simple or detailed reflection'
     min, max = 1, 2
     help_val = {1: 'approximate', 2: 'detailed'}
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 
 class IFSMV_(IntParameter):
     min, max = 0, 1
     help_val = {0: 'fixed in longitude', 1: 'move in longitude'}
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 
 class IFSMV1(IFSMV_):
@@ -204,7 +181,7 @@ class ICOR_(IntParameter):
     help_str = 'RV proximity corrections'
     min, max = 0, 1
     help_val = {0: 'not apply', 1: 'apply'}
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 
 class ICOR1(ICOR_):
@@ -222,7 +199,7 @@ class IF3B(IntParameter):
     help_str = 'third body'
     min, max = 0, 1
     help_val = {0: 'ignore third body parameters', 1: 'utilize third body parameters'}
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 
 class LD_(IntParameter):
@@ -232,7 +209,7 @@ class LD_(IntParameter):
         +1: 'fixed linear cosine law', +2: 'fixed log law', +3: 'fixed square root law',
         -1: 'computed linear cosine law', -2: 'computed log law', -3: 'computed square root law',
     }
-    fmt_lcin = F.x1is2
+    fmt_lcin = FortranFormatter('i', 2, flags=Flags.SIGN)
 
 
 class LD1(LD_):
@@ -250,6 +227,8 @@ class LD2(LD_):
     For negative LD’s, subroutine LIMDARK ignores the input [x,y] and computes x,y coefficients locally
     in terms of Teff, logg and [M/H]."""
 
+#  LINE 2
+
 class JDPHS(IntParameter):
     """This is 1 if the independent variable is time and 2 if it is phase. Setting JDPHS=1 in LC causes time
     (ordinarily Heliocentric Julian Date) to be stepped from HJDST to HJDSP in uniform intervals of length HJDIN.
@@ -263,14 +242,14 @@ class JDPHS(IntParameter):
     help_str = 'time or phase independent variable'
     min, max = 1, 2
     help_val = {1: 'time', 2: 'phase'}
-    fmt_lcin = F.i1
+    fmt_lcin = FortranFormatter('i', 1)
 
 class HJD0(FloatParameter):
     """(t0) This is the zero point of the orbital ephemeris. Usually one uses Heliocentric Julian Date,
     although that is only a convention and any consistent system of time can be used."""
     help_str = 't0 zero point of the orbital ephemeris'
     unit = u.day
-    fmt_lcin = F.f15_6
+    fmt_lcin = FortranFormatter('f', 14, 6, flags=Flags.ZERO)  # F.f15_6
 
 
 class PERIOD(FloatParameter):
@@ -280,7 +259,7 @@ class PERIOD(FloatParameter):
     help_str = 'P0 binary orbit period'
     unit = u.day
     min = 0.0
-    fmt_lcin = F.d17_10
+    fmt_lcin = FortranFormatter('e', 16, 10)  # F.d17_10
 
 
 class DPDT(FloatParameter):
@@ -288,7 +267,7 @@ class DPDT(FloatParameter):
     DPDT can be adjusted only if JDPHS=1 and observation times (rather than phases) are entered.
     This quantity is dimensionless."""
     help_str = 'dP/dt derivative of the orbital period'
-    fmt_lcin = F.d13_6
+    fmt_lcin = FortranFormatter('d', 12, 6, flags=Flags.NOZERO)  # F.d13_6
 
 class PSHIFT(FloatParameter):
     """(φ0) A constant shift applied to computed phases. Usually one enters +0.0000 for φ0, but it may be convenient  to shift the phases.
@@ -296,7 +275,7 @@ class PSHIFT(FloatParameter):
     The main purpose of φ0 is to allow the DC program to adjust for a zero point error in the ephemeris used to compute the phases.
     The unit is the orbital period. One should not adjust both PSHIFT and HJD0 because they will be perfectly correlated."""
     help_str = 'φ0 phase shift'
-    fmt_lcin = F.f10_6
+    fmt_lcin = FortranFormatter('f', 9, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f10_6
 
 class STDEV(FloatParameter):
     """Light curves with synthetic Gaussian noise can be produced by entering a non- zero value for the input quantity STDEV,
@@ -307,7 +286,7 @@ class STDEV(FloatParameter):
     For velocity scatter, enter STDEV in the velocity unit (VUNIT)"""
     help_str = 'synthetic noise level'
     min = 0
-    fmt_lcin = F.d10_4
+    fmt_lcin = FortranFormatter('d', 9, 4, flags=Flags.NOZERO)  # F.d10_4
 
 class NOISE(IntParameter):
     """The way that the noise (scatter) scales with light level is controlled by input integer NOISE.
@@ -317,7 +296,7 @@ class NOISE(IntParameter):
     min = 0
     max = 2
     help_val = {0: 'no level-dependent weights', 1: 'scales with sqrt(level)', 2:'scales with level'}
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)  # F.x1i1
 
 class SEED(FloatParameter):
     """The random number generator needs a seed (FORTRAN name SEED), labeled “seed” in the output.
@@ -326,56 +305,60 @@ class SEED(FloatParameter):
     help_str = 'random generator seed'
     min = 100000001.0
     max = 2.0 * min - 1.0
-    fmt_lcin = F.f11_0
+    fmt_lcin = FortranFormatter('f', 10, 0, flags=Flags.DECDOT)  # F.f11_0
+
+#  LINE 3
 
 class HJDST(FloatParameter):
     """The time at which LC is to start computing output points. HJDST is utilized only if JDPHS=1."""
     help_str = 'output start time'
     unit = u.day
-    fmt_lcin = F.f14_6
+    fmt_lcin = FortranFormatter('f', 14, 6)  # F.f14_6
 
 class HJDSP(FloatParameter):
     """The time at which LC is to stops computing output points. HJDSP is utilized only if JDPHS=1."""
     help_str = 'output stop time'
     unit = u.day
-    fmt_lcin = F.f15_6
+    fmt_lcin = FortranFormatter('f', 14, 6, flags=Flags.ZERO)  # F.f15_6
 
 class HJDIN(FloatParameter):
     """The time increment for output points. HJDIN = 0.001 will produce output points spaced by 0.001 days."""
     help_str = 'output time increment'
     unit = u.day
-    fmt_lcin = F.f13_6
+    fmt_lcin = FortranFormatter('f', 12, 6, flags=Flags.ZERO)  # F.f13_6
 
 class PHSTRT(FloatParameter):
     """The first phase at which output points are to be produced. PHSTOP should be larger than PHSTRT,
     but neither has to be int the range 0 to 1. For example, PHSTRT= −3.2000, PHSTOP = 27.4422 is a valid phase range.
     PHSTRT, PHSTOP, and the next quantity, PHIN, are utilized only if JDPHS=2"""
     help_str = 'output start phase'
-    fmt_lcin = F.f12_6
+    fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
 
 class PHSTOP(FloatParameter):
     """The last phase at which output points are to be produced. PHSTOP should be larger than PHSTRT,
     but neither has to be int the range 0 to 1. For example, PHSTRT= −3.2000, PHSTOP = 27.4422 is a valid phase range.
     PHSTRT, PHSTOP, and the next quantity, PHIN, are utilized only if JDPHS=2"""
     help_str = 'output end phase'
-    fmt_lcin = F.f12_6
+    fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
 
 class PHIN(FloatParameter):
     """The phase increment for output points. PHIN = 0.020 will produce output points every 0.020 in phase,
     within the range PHSTRT to PHSTOP. PHIN, are utilized only if JDPHS=2"""
     help_str = 'output phase increment'
-    fmt_lcin = F.f12_6
+    fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
 
 class PHN(FloatParameter):
     """The phase of normalization, which is the phase at which the column of normalized light is normalized
     to the input value FACTOR and the magnitude column is caused to equal the magnitude zero point, whose name is ZERO."""
     help_str = 'phase normalization'
-    fmt_lcin = F.f12_6
+    fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
+
+#  LINE 4
 
 class MODE(IntParameter):
     """Modes of Program Operation (Solution Constraints) expressing functional relationship among parameters."""
     help_str = 'mode of operation'
-    fmt_lcin = F.i2
+    fmt_lcin = FortranFormatter('i', 2, flags=Flags.ZERO)  # F.i2
     min = -1
     max = 6
     help_val = {
@@ -397,7 +380,7 @@ class IPB(IntParameter):
     set IPB=1 and the program will use the input L2 value.
     Modes 0 and −1 always accept the input L2, so they operate as if IPB=1."""
     help_str = 'independent L2'
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)  # F.x1i1
     min = 0
     max = 1
     help_val = {
@@ -406,7 +389,7 @@ class IPB(IntParameter):
     }
 
 class IFAT_(IntParameter):
-    fmt_lcin = F.x1i1
+    fmt_lcin = FortranFormatter('i', 1)  # F.x1i1
     min = 0
     max = 1
     help_val = {
@@ -423,7 +406,7 @@ class IFAT2(IFAT_):
     help_str = 'blackbody or atmosphere for star 2'
 
 class N_(IntParameter):
-    fmt_lcin = F.i4
+    fmt_lcin = FortranFormatter('i', 3, flags=Flags.ZERO)  # F.i4
     min = 2
 
 class N1(N_):
@@ -444,7 +427,7 @@ class PERR0(FloatParameter):
     changes, both eclipses have excursions in phase in the same way as a real binary.
     For circular orbits, the program ignores the input value and sets ω to π/2 radians."""
     help_str = 'ω0 initial periastron'
-    fmt_lcin = F.f13_6
+    fmt_lcin = FortranFormatter('f', 12, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f13_6
     unit = u.rad
 
 class DPERDT(FloatParameter):
@@ -453,7 +436,7 @@ class DPERDT(FloatParameter):
     The program does not consider any more complicated variations of ω.
     The unit is radians per adopted time unit (usually mean solar day)."""
     help_str = 'dω/dt derivative of the periastron'
-    fmt_lcin = F.d12_5
+    fmt_lcin = FortranFormatter('d', 11, 5, flags=Flags.NOZERO | Flags.SIGN)  # F.d12_5
     unit = u.rad / u.day
 
 class THE(FloatParameter):
@@ -467,7 +450,7 @@ class THE(FloatParameter):
     help_str = 'φe semi-duration of primary eclipse'
     min = 0.0
     max = 1.0
-    fmt_lcin = F.f7_5
+    fmt_lcin = FortranFormatter('f', 6, 5, flags=Flags.NOZERO)  # F.f7_5
 
 class VUNIT(FloatParameter):
     """Unit for radial velocity input and output, in km/sec. Usually it is a round number, such as 100 km/sec,
@@ -475,25 +458,27 @@ class VUNIT(FloatParameter):
     help_str = 'RV unit [km/sec]'
     min = 0.0
     unit = u.km/u.s
-    fmt_lcin = F.f8_2
+    fmt_lcin = FortranFormatter('f', 7, 2, flags=Flags.ZERO)  # F.f8_2
+
+#  LINE 5
 
 class E(FloatParameter):
     """(e): Binary orbital eccentricity"""
     help_str = 'e eccentricity'
     min = 0
-    fmt_lcin = F.f6_5
+    fmt_lcin = FortranFormatter('f', 6, 5, flags=Flags.NOZERO)  # F.f6_5
 
 class A(FloatParameter):
     """(a): The length of the semi-major axis in solar radii (6.95660*10^5 km [Haberreiter+2008])
     of the relative orbital ellipse.
     It is the sum of the two absolute semi-major axes, so a = a1 + a2"""
-    fmt_lcin = F.d13_6
+    fmt_lcin = FortranFormatter('d', 12, 6, flags=Flags.NOZERO)  # F.d13_6
     help_str = 'a semi-major axis [Rsun]'
     min = 0
     unit = u_Rsol
 
 class F_(FloatParameter):
-    fmt_lcin = F.f10_4
+    fmt_lcin = FortranFormatter('f', 9, 4, flags=Flags.ZERO | Flags.SIGN)  # F.f10_4
 
 class F1(F_):
     """(F1): The ratio of the (constant) axial rotation rate to the mean orbital rate for star 1.
@@ -523,7 +508,7 @@ class VGA(FloatParameter):
     Vγ is assumed constant, although the EB center of mass radial velocity follows from motion about the barycenter
     if there is a third body."""
     help_str = 'Vγ barycenter radial velocity'
-    fmt_lcin = F.f10_4
+    fmt_lcin = FortranFormatter('f', 9, 4, flags=Flags.ZERO | Flags.SIGN)  # F.f10_4
 
 
 class XINCL(FloatParameter):
@@ -532,12 +517,12 @@ class XINCL(FloatParameter):
     while above 90◦ it orbits clockwise, according to the program’s coordinate conventions.
     Those conventions were different prior to the revision of 1992."""
     help_str = 'i orbit inclination'
-    fmt_lcin = F.f9_3
+    fmt_lcin = FortranFormatter('f', 8, 3, flags=Flags.ZERO | Flags.SIGN)  # F.f9_3
     min, max = 0.0, 180.0
     unit = u.deg
 
 class GR_(FloatParameter):
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3, flags=Flags.ZERO)  # F.f7_3
     min, max = 0.0, 1.0
 
 
@@ -565,11 +550,12 @@ class ABUNIN(FloatParameter):
     If ABUNIN is not one of the 19 Kurucz values, it is reset automatically to the nearest Kurucz value,
     as there is no interpolation in [M/H]"""
     help_str = 'metallicity [M/H]'
-    fmt_lcin = F.f7_2
+    fmt_lcin = FortranFormatter('f', 6, 2, flags=Flags.ZERO | Flags.SIGN)  # F.f7_2
 
+#  LINE 6
 
 class TAV_(FloatParameter):
-    fmt_lcin = F.f7_4
+    fmt_lcin = FortranFormatter('f', 7, 4, flags=Flags.ZERO)  # F.f7_4
     unit = u.Unit('10000 K')
 
 class TAVH(TAV_):
@@ -589,7 +575,7 @@ class TAVC(TAV_):
     help_str = 'T1 Teff of star 2'
 
 class ALB_(FloatParameter):
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3, flags=Flags.ZERO | Flags.SIGN)  # F.f7_3
     min, max = 0.0, 1.0
 
 class ALB1(ALB_):
@@ -609,7 +595,7 @@ class ALB2(ALB_):
     help_str = 'A1 albedo of star 2'
 
 class POT_(FloatParameter):
-    fmt_lcin = F.d13_6
+    fmt_lcin = FortranFormatter('d', 12, 6)  # F.d13_6
 
 class POTH(POT_):
     """Modified surface ’potential’ for star 1."""
@@ -623,10 +609,10 @@ class RM(FloatParameter):
     """(q): The mass ratio of stars 2 and 1, m2/m1."""
     help_str = 'q mass ratio m2/m1'
     min = 0.0
-    fmt_lcin = F.d13_6
+    fmt_lcin = FortranFormatter('d', 12, 6)  # F.d13_6
 
 class BOL_(FloatParameter):
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3, Flags.SIGN)  # F.f7_3
 
 class XBOL1(BOL_):
     """(xbol1): The coefficient of cos γ in the bolometric limb darkening law.
@@ -659,54 +645,58 @@ class YBOL2(BOL_):
     See YBOL1, for the complete law and explanation."""
     help_str = 'star 2 y coefficient of limb darkening law'
 
+#  LINE 7 - third body
 
 class A3B(FloatParameter):
     """(a3b): The length of the semi-major axis of the relative orbit of the EB center of mass around the system’s
     barycenter, in solar radii."""
     help_str = 'a3b semi-major of EB center around barycenter [Rsol]'
-    fmt_lcin = F.d12_6
+    fmt_lcin = FortranFormatter('d', 12, 6)  # F.d12_6
     unit = u_Rsol
 
 
 class P3B(FloatParameter):
     """(P3b): The third body orbit period in mean solar days."""
     help_str = 'P3b third body period [day]'
-    fmt_lcin = F.d14_7
+    fmt_lcin = FortranFormatter('d', 13, 7)  # F.d14_7
     unit = u.day
 
 class XINC3B(FloatParameter):
     """(i3b): The third body orbital inclination to the plane of the sky, in degrees.
     This parameter should not be adjusted if a3b is adjusted since a3b and i3b are perfectly correlated."""
-    fmt_lcin = F.f11_5
+    fmt_lcin = FortranFormatter('f', 10, 5, Flags.ZERO | Flags.SIGN)  # F.f11_5
     help_str = 'i3b third body inclination [deg]'
     unit = u.deg
 
 
 class E3B(FloatParameter):
     """(e3b): Third body orbital eccentricity."""
-    fmt_lcin = F.f9_6
+    fmt_lcin = FortranFormatter('f', 8, 6, Flags.ZERO)  # F.f9_6
     help_str = 'e3b third body eccentricity'
     min = 0
 
 
 class PERR3B(FloatParameter):
     """(ω3b): Argument of periastron of third body orbit."""
-    fmt_lcin = F.f10_7
+    fmt_lcin = FortranFormatter('f', 9, 7, Flags.ZERO)  # F.f10_7
     help_str = 'ω3b third body argument of periastron'
     unit = u.rad
 
 
 class TCONJ3B(FloatParameter):
     """(tc3b): Time of superior conjunction of the EB center of mass with respect to the third body, usually in HJD"""
-    fmt_lcin = F.f17_8
+    fmt_lcin = FortranFormatter('f', 16, 8, Flags.ZERO)  # F.f17_8
     help_str = 'tc3b superior conjunction of EB center with respect to the third body'
     unit = u.day
+
+#  LINE 8 bands
+
 
 class IBAND(IntParameter):
     """Bands, band identification numbers (IBAND).
     Response curves for bands 17 to 22 are rectangular, have widths of 20 nm and are centered on the wavelength (in nm)
     indicated by their names."""
-    fmt_lcin = F.i3
+    fmt_lcin = FortranFormatter('i', 3)  # F.i3
     help_str = 'Band'
     min, max = 1, 25
     help_val = {
@@ -718,41 +708,41 @@ class IBAND(IntParameter):
 
 class HLUM(FloatParameter):
     """Bandpass luminosity of star 1, used if  IPB = 1"""
-    fmt_lcin = F.d13_5
+    fmt_lcin = FortranFormatter('d', 12, 5)  # F.d13_5
     help_str = 'L1 luminosity of star 1'
 
 
 class CLUM(FloatParameter):
     """Bandpass luminosity of star 2, used if  IPB = 1"""
-    fmt_lcin = F.d13_5
+    fmt_lcin = FortranFormatter('d', 12, 5)  # F.d13_5
     help_str = 'L1 luminosity of star 2'
 
 
 class XH(FloatParameter):
     """Wavelength-specific limb darkening coefficient in the linear terms for star 1.
     The laws have the same forms as for bolometric limb darkening"""
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3)  # F.f7_3
     help_str = 'star 1 limb darkening coefficient x'
 
 
 class XC(FloatParameter):
     """Wavelength-specific limb darkening coefficient in the linear terms for star 2.
     The laws have the same forms as for bolometric limb darkening"""
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3)  # F.f7_3
     help_str = 'star 2 limb darkening coefficient x'
 
 
 class YH(FloatParameter):
     """Wavelength-specific limb darkening coefficient in the linear terms for star 1.
     The laws have the same forms as for bolometric limb darkening"""
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3)  # F.f7_3
     help_str = 'star 1 limb darkening coefficient y'
 
 
 class YC(FloatParameter):
     """Wavelength-specific limb darkening coefficient in the linear terms for star 2.
     The laws have the same forms as for bolometric limb darkening"""
-    fmt_lcin = F.f7_3
+    fmt_lcin = FortranFormatter('f', 6, 3)  # F.f7_3
     help_str = 'star 2 limb darkening coefficient y'
 
 
@@ -762,25 +752,25 @@ class EL3(FloatParameter):
     For example, suppose l3 (program input-output value) for some particular light curve is 0.0500,
     the specified phase is chosen to be 0.2500, and the total system light produced by LC at phase 0.2500 is 1.0400.
     Then the number to be published for the l3 of that curve would be 0.0500 divided by 1.0400, or 0.0481."""
-    fmt_lcin = F.f8_4
+    fmt_lcin = FortranFormatter('f', 7, 4, Flags.ZERO)  # F.f8_4
     help_str = 'l3 third light'
 
 
 class OPSF(FloatParameter):
-    fmt_lcin = F.d10_4
+    fmt_lcin = FortranFormatter('d', 9, 4)  # F.d10_4
     help_str = ''
 
 
 class ZERO(FloatParameter):
     """This is the reference level for output magnitudes (the magnitude at phase PHN)"""
-    fmt_lcin = F.f8_3
+    fmt_lcin = FortranFormatter('f', 7, 3, Flags.SIGN)  # F.f8_3
     help_str = 'magnitude zero point'
 
 
 class FACTOR(FloatParameter):
     """This is the scaling factor for the normalized light column.
     The number in that column will equal FACTOR at phase PHN"""
-    fmt_lcin = F.f8_4
+    fmt_lcin = FortranFormatter('f', 7, 4, Flags.ZERO)  # F.f8_4
     help_str = 'normalized light scaling factor'
 
 
@@ -791,11 +781,14 @@ class WL(FloatParameter):
     Wavelengths are no longer used for light curves, which now are based on integrated bandpass radiation.
     Wavelengths are still entered for use as reference wavelengths for line profiles and for opacity computations in
     circumstellar attenuation."""
-    fmt_lcin = F.f9_6
+    fmt_lcin = FortranFormatter('f', 8, 5, Flags.ZERO)  # F.f9_6
     help_str = 'Reference wavelength'
-    
+    unit = u.micron
+
+#  LINE 9+ spectral 1
+
 class BINWM_(FloatParameter):
-    fmt_lcin = F.f11_5
+    fmt_lcin = FortranFormatter('f', 11, 5, Flags.ZERO)  # F.f11_5
     unit = u.micron
 
 class BINWM1(BINWM_):
@@ -810,7 +803,7 @@ class BINWM2(BINWM_):
     help_str = 'Star 2. Spectral bin with'
 
 class SC_(FloatParameter):
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 8, 4, Flags.ZERO)  # F.f9_4
 
 class SC1(SC_):
     """Spectral. The continuum scale (continuum flux at the reference wavelength). The unit is decided by the user."""
@@ -821,7 +814,7 @@ class SC2(SC_):
     help_str = 'Star 2. Spectral continuum scale'
 
 class SL_(FloatParameter):
-    fmt_lcin = F.f9_2
+    fmt_lcin = FortranFormatter('f', 8, 2, Flags.ZERO)  # F.f9_2
     unit = 1.0 / u.micron
 
 class SL1(SL_):
@@ -833,7 +826,7 @@ class SL2(SL_):
     help_str = 'Star 2. Spectral continuum slope'
 
 class NF_(IntParameter):
-    fmt_lcin = F.i3
+    fmt_lcin = FortranFormatter('i', 2, Flags.ZERO)  # F.i3
     min = 1
 
 class NF1(NF_):
@@ -848,25 +841,26 @@ class NF2(NF_):
     each with its own radial velocity, thus improving integration accuracy."""
     help_str = 'Star 2. Spectral, grid fineness'
 
+#  LINE 9+ spectral 2+
 
 class WLL(FloatParameter):
     """The line rest wavelength in microns for a line of star 1 or 2"""
     help_str = 'line rest wavelength'
-    fmt_lcin = F.f9_6
+    fmt_lcin = FortranFormatter('f', 9, 6, Flags.ZERO)  # F.f9_6
     nan_value = -1.
     unit = u.micron
 
     def isnan(self):
         return self.val < 0.0
 
-
 class EWID(FloatParameter):
     """The line equivalent width, in microns – the traditional measure of line strength, for a line of star 1 (or 2).
     Absorption and emission lines both have positive equivalent width by program convention.
     Whether a line is in absorption or emission is controlled by parameters DEPTH"""
     help_str = 'line equivalent width'
-    fmt_lcin = F.d12_5
+    fmt_lcin = FortranFormatter('d', 11, 5)  # F.d12_5
     min = 0.0
+    unit = u.micron
 
 
 class DEPTH(FloatParameter):
@@ -879,7 +873,7 @@ class DEPTH(FloatParameter):
     Depths must be less than 1.0000 (i.e. an absorption line cannot go to zero flux or below),
     but can be less than −1.0000 (an emission line can go arbitrarily high)."""
     help_str = 'line rectangular depth'
-    fmt_lcin = F.f10_5
+    fmt_lcin = FortranFormatter('f', 9, 5, Flags.ZERO)  # F.f10_5
     max = 1.0
 
 class KKS(IntParameter):
@@ -892,14 +886,16 @@ class KKS(IntParameter):
     Negative KKS specifies avoidance of regions. Thus KKS=−4 means that the spectral line applies everywhere on
     the star except within spot 4.
     If you find this confusing, just set KKS=0 and the line applies in the old simple way – everywhere on the star."""
-    fmt_lcin = F.i5
+    fmt_lcin = FortranFormatter('i', 4)  # F.i5
     help_str = 'line region'
+
+#  LINE 9+ spots
 
 class XLAT(FloatParameter):
     """ The “latitude” of a star spot center, measured from 0 radians at the “north” (+z) pole
     to π radians at the “south” pole."""
     help_str = 'spot latitude'
-    fmt_lcin = F.f9_5
+    fmt_lcin = FortranFormatter('f', 9, 5, Flags.ZERO)  # F.f9_5
     unit = u.rad
     nan_value = 300.0
 
@@ -911,7 +907,7 @@ class XLONG(FloatParameter):
     """ The longitude of a star spot center, measured counter-clockwise (as viewed from above the +z axis)
     from the line of star centers from 0 to 2π radians. """
     help_str = 'spot longitude'
-    fmt_lcin = F.f9_5
+    fmt_lcin = FortranFormatter('f', 8, 5, Flags.ZERO)  # F.f9_5
     unit = u.rad
 
 
@@ -919,7 +915,7 @@ class RADSP(FloatParameter):
     """The angular radius of a star spot, in radians.
     The angle is subtended by the spot radius at the center of the star. """
     help_str = 'spot radius'
-    fmt_lcin = F.f9_5
+    fmt_lcin = FortranFormatter('f', 8, 5, Flags.ZERO)  # F.f9_5
     unit = u.rad
 
 
@@ -930,15 +926,16 @@ class TEMSP(FloatParameter):
     TEMSP is constant for a given spot, but local temperature will vary over a spot if the underlying un-spotted
     temperature varies."""
     help_str = 'spot temperature factor'
-    fmt_lcin = F.f9_5
+    fmt_lcin = FortranFormatter('f', 8, 5, Flags.ZERO)  # F.f9_5
     min = 0.0
 
+#  LINE 9+ clouds
 
 class XCL(FloatParameter):
     """Rectangular coordinate x of the centers of spherical circumstellar cloud.
     The x coordinate is zero at the center of star 1 and increases toward star 2, reaching +D at the center of star 2.
     The x, y, z system is right handed and serves for the entire binary system."""
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 9, 4, Flags.ZERO)  # F.f9_4
     help_str = 'cloud x'
     nan_value = 150.0
 
@@ -948,48 +945,43 @@ class XCL(FloatParameter):
 
 class YCL(FloatParameter):
     """Rectangular coordinate y of the centers of spherical circumstellar cloud"""
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 8, 4, Flags.ZERO)  # F.f9_4
     help_str = 'cloud y'
 
 
 class ZCL(FloatParameter):
     """Rectangular coordinate z of the centers of spherical circumstellar cloud"""
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 8, 4, Flags.ZERO)  # F.f9_4
     help_str = 'cloud z'
 
 
 class RCL(FloatParameter):
     """Radii of individual circumstellar spherical attenuating regions in unit of a"""
-    fmt_lcin = F.f7_4
+    fmt_lcin = FortranFormatter('f', 6, 4, Flags.ZERO)  # F.f7_4
     help_str = 'cloud radii'
 
 
 class OP1(FloatParameter):
-    fmt_lcin = F.d11_4
+    fmt_lcin = FortranFormatter('d', 10, 4, Flags.ZERO)  # F.d11_4
 
 class FCL(FloatParameter):
     help_str = 'f band opacity fraction'
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 8, 4, Flags.ZERO)  # F.f9_4
 
 class EDENS(FloatParameter):
     """(ne): Electron densities in cm^−3 for individual attenuating cloud.
     For a given cloud, ne is constant, although clouds can be nested or overlapped."""
     help_str = 'ne cloud electron density'
-    fmt_lcin = F.d11_3
+    fmt_lcin = FortranFormatter('d', 10, 3, Flags.ZERO)  # F.d11_3
 
 class XMUE(FloatParameter):
     """(μe): Mean molecular weight in atomic mass units per free electron for individual attenuating cloud,
     and constant throughout a given cloud."""
     help_str = 'μe cloud mean molecular weight'
-    fmt_lcin = F.f9_4
+    fmt_lcin = FortranFormatter('f', 8, 4, Flags.ZERO)  # F.f9_4
 
 class ENCL(FloatParameter):
     """(α): Exponent in the wavelength-dependent term of the attenuation law for individual attenuating cloud.
     The program internally computes densities, ρ, from ne and μe."""
     help_str = 'α cloud attenuation law exponent'
-    fmt_lcin = F.f7_3
-
-
-
-
-
+    fmt_lcin = FortranFormatter('f', 6, 3, Flags.ZERO)  # F.f7_3

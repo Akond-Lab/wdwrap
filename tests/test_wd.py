@@ -14,10 +14,10 @@ class TestWD(unittest.TestCase):
     def test_default_files(self):
         """ Checks if there is an access to default file"""
         import os
-        from wdwrap.bundle import Bundle
+        from wdwrap.io import Reader_lcin
 
         self.assertTrue(
-            os.path.isfile(Bundle.default_wd_file_abspath('lcin_original.active'))
+            os.path.isfile(Reader_lcin.default_wd_file_abspath('lcin_original.active'))
         )
 
     def test_default_binary(self):
@@ -58,6 +58,17 @@ class TestWD(unittest.TestCase):
         r = Reader_lcin(buf)
         b2 = r.bundles[0]
         self.assertEqual(b1, b2)
+
+    def test_lc_runner(self):
+        import wdwrap
+        from wdwrap.runners import LCRunner
+        r = LCRunner()
+        r = Reader_lcin()
+        r.open_default_file('lcin.2007.dat1')
+        bs = r.bundles
+        self.assertEqual(len(bs), 2)  # Two bundles in file
+        w = Writer_lcin(sys.stdout, bs)
+        w.write()
 
 
 

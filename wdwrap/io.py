@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding=utf-8
 """Reading and Writing WD files
 
 This module implements classes to read and write files used by WD code"""
@@ -14,9 +14,9 @@ class IO(object):
     File can be given as opened file descriptor (e.g. `sys.stdin`) or pathname string.
 
     Parameters
-        ----------
-        input : str or file-like
-            File to be read, either file-like object or pathname string.
+    ----------
+    input : str or file-like
+        File to be read, either file-like object or pathname string.
     """
 
     def __init__(self, input):
@@ -116,7 +116,7 @@ class Writer_lcin(Writer):
         # fmt = ''.join([v.fmt_lcin for v in line.values()])
         # print(fmt.format(*line.values()), file=self.fd)
         formatted_lcin = [v.lcin for v in line.values()]
-        lns = ''.join(formatted_lcin)
+        lns = ' '.join(formatted_lcin)
         print(lns, file=self.fd)
 
 

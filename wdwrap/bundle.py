@@ -59,6 +59,10 @@ class Bundle(ParameterSet):
     def __hash__(self):
         return hash(repr(self))
 
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+
 
 
 
