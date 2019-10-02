@@ -7,6 +7,7 @@ from __future__ import print_function
 from os import path
 from collections import OrderedDict
 import parameter as p
+from bundle import Bundle
 
 class IO(object):
     """Abstract base class for file readers/writers
@@ -15,20 +16,20 @@ class IO(object):
 
     Parameters
     ----------
-    input : str or file-like
+    filepath : str or file-like
         File to be read, either file-like object or pathname string.
     """
 
-    def __init__(self, input):
+    def __init__(self, filepath):
         super(IO, self).__init__()
-        if input is None:
+        if filepath is None:
             self.filename = None
             self.fd = None
             self.closeonexit = False
-        elif isinstance(input, str):
-            self.open_file(filepath=input)
+        elif isinstance(filepath, str):
+            self.open_file(filepath=filepath)
         else:
-            self.fd = input
+            self.fd = filepath
             self.filename = None
             self.closeonexit = False
 
@@ -74,15 +75,24 @@ class Writer_lcin(Writer):
 
     Parameters
     ----------
-    input : str or file-like
+    filepath : str or file-like
         File to be written, either file-like object or pathname string.
-    bundles : list of wdwrap.Bundle
+    bundle : wdwrap.Bundle or list of wdwrap.Bundle
         List of *bundles* to be written - sets of binary system parameters.
     """
 
-    def __init__(self, input=None, bundles=None):
-        super(Writer_lcin, self).__init__(input)
-        self.bundles = bundles
+    def __init__(self, filepath=None, bundle=None):
+        super(Writer_lcin, self).__init__(filepath)
+        self.bundles = self.bundleslist(bundle)
+
+    @staticmethod
+    def bundleslist(bundle):
+        """If parameter `bundle` is a single Bundle returns `list(bundle)`
+        otherwise assumes that parameter is a list already and returns it"""
+        if isinstance(bundle, Bundle):
+            return [bundle]
+        else:
+            return bundle  # list already
 
     def write(self):
         for b in self.bundles:
@@ -133,8 +143,8 @@ class Reader_lcin(Reader):
         File to be read, either file-like object or pathname string.
     """
 
-    def __init__(self, input=None):
-        super(Reader_lcin, self).__init__(input)
+    def __init__(self, filepath=None):
+        super(Reader_lcin, self).__init__(filepath)
         self._bundles = None
 
     @property

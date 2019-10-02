@@ -61,17 +61,9 @@ class TestWD(unittest.TestCase):
 
     def test_lc_runner(self):
         import wdwrap
-        from wdwrap.runners import LCRunner
-        r = LCRunner()
-        r = Reader_lcin()
-        r.open_default_file('lcin.2007.dat1')
-        bs = r.bundles
-        self.assertEqual(len(bs), 2)  # Two bundles in file
-        w = Writer_lcin(sys.stdout, bs)
-        w.write()
-
-
-
+        from wdwrap.runners import LcRunner
+        r = LcRunner()
+        r.run([wdwrap.default_binary()])
 
 
 if __name__ == '__main__':

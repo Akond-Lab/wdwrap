@@ -1,7 +1,7 @@
 # coding=utf-8
 from os import path
-from wdwrap.parameters import ParameterSet
-from io import Reader_lcin
+from .parameters import ParameterSet
+
 
 from .config import default_cfg
 
@@ -40,6 +40,7 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_binary(cls, default_file=None, bundleno=0):
+        from .io import Reader_lcin
         if default_file is None:
             default_file = 'lcin_original.active'
         b = cls.open(Reader_lcin.default_wd_file_abspath(default_file), bundleno=bundleno)
@@ -47,6 +48,7 @@ class Bundle(ParameterSet):
 
     @classmethod
     def open(cls, filepath, bundleno=0):
+        from .io import Reader_lcin
         reader = Reader_lcin(filepath)
         return reader.bundles[bundleno]
 
