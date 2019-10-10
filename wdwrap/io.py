@@ -9,6 +9,7 @@ from collections import OrderedDict
 import parameter as p
 from bundle import Bundle
 
+
 class IO(object):
     """Abstract base class for file readers/writers
 
@@ -22,16 +23,13 @@ class IO(object):
 
     def __init__(self, filepath):
         super(IO, self).__init__()
-        if filepath is None:
-            self.filename = None
-            self.fd = None
-            self.closeonexit = False
-        elif isinstance(filepath, str):
+        self.filename = None
+        self.fd = None
+        self.closeonexit = False
+        if isinstance(filepath, str):
             self.open_file(filepath=filepath)
-        else:
+        elif filepath is not None:  # suppose open stream
             self.fd = filepath
-            self.filename = None
-            self.closeonexit = False
 
     def __del__(self):
         if self.closeonexit:
@@ -63,9 +61,11 @@ class Reader(IO):
     def _open(self, filepath):
         return open(self.filename, 'r')
 
+
 class Writer(IO):
     def _open(self, filepath):
         return open(self.filename, 'w')
+
 
 class Writer_lcin(Writer):
     """lcin files writer
@@ -127,7 +127,7 @@ class Writer_lcin(Writer):
         # print(fmt.format(*line.values()), file=self.fd)
         formatted_lcin = [v.lcin for v in line.values()]
         lns = ' '.join(formatted_lcin)
-        print(lns, file=self.fd)
+        # print(lns, file=self.fd)
 
 
 class Reader_lcin(Reader):
@@ -172,11 +172,13 @@ class Reader_lcin(Reader):
             b.add_line(ln)
             ln = self._read_line([p.E, p.A, p.F1, p.F2, p.VGA, p.XINCL, p.GR1, p.GR2, p.ABUNIN])
             b.add_line(ln)
-            ln = self._read_line([p.TAVH, p.TAVC, p.ALB1, p.ALB2, p.POTH, p.POTC, p.RM, p.XBOL1, p.XBOL2, p.YBOL1, p.YBOL2])
+            ln = self._read_line(
+                [p.TAVH, p.TAVC, p.ALB1, p.ALB2, p.POTH, p.POTC, p.RM, p.XBOL1, p.XBOL2, p.YBOL1, p.YBOL2])
             b.add_line(ln)
             ln = self._read_line([p.A3B, p.P3B, p.XINC3B, p.E3B, p.PERR3B, p.TCONJ3B])
             b.add_line(ln)
-            ln = self._read_line([p.IBAND, p.HLUM, p.CLUM, p.XH, p.XC, p.YH, p.YC, p.EL3, p.OPSF, p.ZERO, p.FACTOR, p.WL])
+            ln = self._read_line(
+                [p.IBAND, p.HLUM, p.CLUM, p.XH, p.XC, p.YH, p.YC, p.EL3, p.OPSF, p.ZERO, p.FACTOR, p.WL])
             b.add_line(ln)
             if b['MPAGE'] == 3:  # Spectral lines to be generated
                 ln = self._read_line([p.BINWM1, p.SC1, p.SL1, p.NF1])
@@ -215,5 +217,39 @@ class Reader_lcin(Reader):
         return lnd
 
 
+class FixedTableReader(Reader):
+
+    def __init__(self, filepath, columns=None):
+        super(FixedTableReader, self).__init__(filepath)
+        self._table = None
+        self.columns = columns
+
+    @property
+    def table(self):
+        if self._table is None:
+            self._read()
+        return self._table
+
+    def _read(self):
+        self._table = []
+        for l in self.fd:
+            if '#' in l[:2]:
+                pass
+            else:
+                row = []
+                for s in l.split():
+                    if s[-4:-3] == 'D':  # Fortran exponent -> python
+                        s = s.replace('D', 'e', 1)
+                    row.append(float(s))
+                self._table.append(row)
 
 
+class Reader_light(FixedTableReader):
+
+    def __init__(self, filepath):
+        super(Reader_light, self).__init__(filepath,
+                                           columns=[15, 15, 12, 12, 12, 12, 12, 10, 11, 11, 16]
+                                           )
+
+class Reader_veloc(FixedTableReader):
+    pass

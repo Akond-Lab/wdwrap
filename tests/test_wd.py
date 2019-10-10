@@ -63,8 +63,25 @@ class TestWD(unittest.TestCase):
         import wdwrap
         from wdwrap.runners import LcRunner
         r = LcRunner()
-        r.run([wdwrap.default_binary()])
+        r.run(wdwrap.default_binary())
 
+    def test_bundle_lc_run_light(self):
+        import wdwrap
+        b = wdwrap.default_binary()
+        b.lc()
+        self.assertGreater(len(b.light_cal), 10)
+
+    def test_bundle_lc_run_rv(self):
+        import wdwrap
+        b = wdwrap.default_binary()
+        b['MPAGE'] = wdwrap.MPAGE.VELOC
+        b.lc()
+        self.assertGreater(len(b.veloc), 10)
+
+    def test_bundle_lc_run_rv_auto(self):
+        import wdwrap
+        b = wdwrap.default_binary()
+        self.assertGreater(len(b.veloc), 10)
 
 if __name__ == '__main__':
     unittest.main()

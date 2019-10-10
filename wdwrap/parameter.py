@@ -129,9 +129,14 @@ class MPAGE(IntParameter):
     relative star dimensions (MPAGE=4), or sky coordinates for producing images (MPAGE=5)."""
     help_str = 'type of output'
     min, max = 1, 5
-    help_val = {1: 'light curves', 2: 'velocity curves', 3: 'line profiles', 4: 'radii vs. phase', 5: 'pictures'}
     fmt_lcin = FortranFormatter('i', 1)
     nan_value = 9
+    help_val = {1: 'light curves', 2: 'velocity curves', 3: 'line profiles', 4: 'radii vs. phase', 5: 'pictures'}
+    LIGHT = 1
+    VELOC = 2
+    SPECT = 3
+    RELAT = 4
+    IMAGE = 5
 
 
 class NREF(IntParameter):

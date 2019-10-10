@@ -1,52 +1,11 @@
 from __future__ import print_function
-import shutil
 import os
 import re
-from tempfile import mkdtemp
-import subprocess as subprocess
-from .io import Writer_lcin
+import subprocess32 as subprocess
+
+from .tempdir import WdTempDir
+from .io import *
 from .config import default_cfg
-
-class TmpDir:
-    """
-    instances of TmpDir keeps track and lifetime of temporary directory
-    """
-    path = None
-
-    def __init__(self, delete_on_exit=False):
-        self.delete_on_exit = delete_on_exit
-        self.path = mkdtemp(prefix='wdwrap_')
-        self._init_dir()
-
-    def _init_dir(self):
-        pass
-
-    def __del__(self):
-        if self.delete_on_exit:
-            self.rm_dir()
-
-    def __enter__(self):
-        return self.path
-
-    def __exit__(self, type_, value, traceback):
-        if self.delete_on_exit:
-            self.rm_dir()
-
-    def __str__(self):
-        return self.path
-
-    def rm_dir(self):
-        try:
-            shutil.rmtree(self.path)
-        except OSError:
-            pass
-
-class WdTempDir(TmpDir):
-
-    def _init_dir(self):
-        TmpDir._init_dir(self)
-        for f in ['atmcof.dat', 'atmcofplanck.dat']:
-            os.symlink(Writer_lcin.default_wd_file_abspath(f), os.path.join(self.path, f))
 
 
 class Runner(object):
@@ -61,17 +20,34 @@ class LcRunner(object):
         self.executable = cfg.get('executables', 'lc')
 
     def run(self, bundle):
-        with WdTempDir() as d:
+        with WdTempDir(delete_on_exit=False) as d:
             self.write_lcin(bundle, d)
             proc = subprocess.Popen([self.executable], cwd=d, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             outs, errs = proc.communicate()
             errors = re.search(r'error:\s*(.*)', errs)
             if errors:
                 raise RuntimeError('lc error: ' + errors.groups()[0])
+            self.collect(d, bundle)
             # print (errs)
             # print (d)
 
-    def write_lcin(self, bundle, dir, filename='lcin.active'):
-        w = Writer_lcin(filepath=os.path.join(dir, filename), bundle=bundle)
+    def write_lcin(self, bundle, directory, filename='lcin.active'):
+        w = Writer_lcin(filepath=os.path.join(directory, filename), bundle=bundle)
         w.write()
+
+    def collect(self, directory, bundle, files=None):
+        if files is None:
+            files = ['light.dat', 'veloc.dat', 'spect.dat', 'relat.dat', 'image.dat']
+        for f in files:
+            try:
+                self.collet_file(directory=directory, filename=f, bundle=bundle)
+            except IOError:
+                pass
+
+    def collet_file(self, directory, filename, bundle):
+        filepath = os.path.join(directory, filename)
+        if filename == 'light.dat':
+            bundle.light_cal = Reader_light(filepath).table
+        elif filename == 'veloc.dat':
+            bundle.veloc = Reader_veloc(filepath).table
 

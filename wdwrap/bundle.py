@@ -1,6 +1,8 @@
 # coding=utf-8
 from os import path
 from .parameters import ParameterSet
+from .parameter import Parameter
+from .parameter import MPAGE
 
 
 from .config import default_cfg
@@ -33,9 +35,14 @@ wd_files = {
 
 
 class Bundle(ParameterSet):
+    # constants
+    MAPGE_RV = None
+
     def __init__(self, wdversion='2007'):
         super(Bundle, self).__init__()
         self.wdversion = wdversion
+        self._light = None
+        self._veloc = None
 
 
     @classmethod
@@ -58,12 +65,53 @@ class Bundle(ParameterSet):
             for l in self.lines
         ])
 
+    def __setitem__(self, k, v):
+        try:
+            el = self[k]
+            el.val = v
+        except KeyError as e:
+            if isinstance(v, (Parameter, list)):
+                super(Bundle, self).__setitem__(k, v)
+            else:
+                raise e
+
     def __hash__(self):
         return hash(repr(self))
 
     def __eq__(self, other):
         return hash(self) == hash(other)
 
+    def lc(self):
+        from .runners import LcRunner
+        r = LcRunner()
+        r.run(self)
+
+    def reset(self):
+        """Resets cashed results from lc"""
+
+    @property
+    def light_cal(self):
+        """Calculated (by LC) light curve"""
+        if not self._light:
+            self['MPAGE'] = MPAGE.LIGHT
+            self.lc()
+        return self._light
+
+    @light_cal.setter
+    def light_cal(self, val):
+        self._light = val
+
+    @property
+    def veloc(self):
+        """Calculated (by LC) RV curve"""
+        if not self._veloc:
+            self['MPAGE'] = MPAGE.VELOC
+            self.lc()
+        return self._veloc
+
+    @veloc.setter
+    def veloc(self, val):
+        self._veloc = val
 
 
 
