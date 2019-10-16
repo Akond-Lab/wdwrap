@@ -7,7 +7,7 @@ from __future__ import print_function
 from os import path
 from collections import OrderedDict
 import parameter as p
-from bundle import Bundle
+from bundle import Bundle, ParameterSet
 
 
 class IO(object):
@@ -83,13 +83,13 @@ class Writer_lcin(Writer):
 
     def __init__(self, filepath=None, bundle=None):
         super(Writer_lcin, self).__init__(filepath)
-        self.bundles = self.bundleslist(bundle)
+        self.bundles = self.bundleslist(bundle)   # TODO: Change to ParameterSet
 
     @staticmethod
     def bundleslist(bundle):
         """If parameter `bundle` is a single Bundle returns `list(bundle)`
         otherwise assumes that parameter is a list already and returns it"""
-        if isinstance(bundle, Bundle):
+        if isinstance(bundle, ParameterSet):
             return [bundle]
         else:
             return bundle  # list already
@@ -127,7 +127,7 @@ class Writer_lcin(Writer):
         # print(fmt.format(*line.values()), file=self.fd)
         formatted_lcin = [v.lcin for v in line.values()]
         lns = ' '.join(formatted_lcin)
-        # print(lns, file=self.fd)
+        print(lns, file=self.fd)
 
 
 class Reader_lcin(Reader):

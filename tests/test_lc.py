@@ -83,5 +83,23 @@ class TestWD(unittest.TestCase):
         b = wdwrap.default_binary()
         self.assertGreater(len(b.veloc), 10)
 
+
+    def test_phoebe_style(self):
+        import wdwrap
+        b = wdwrap.default_binary()
+        # b.set_value('teff', component='secondary', value=5000)
+        # b.set_value('q', value=0.75)
+        # b.add_dataset('lc', times=phoebe.linspace(0, 2, 101))
+        # b.add_dataset('rv', times=phoebe.linspace(0, 2, 101))
+        # b.run_compute()
+        # b.plot(show=True)
+        b.set_value('TAVH', value=5000)
+        b.set_value('RM', value=0.75)
+        b.run_compute()
+
+
+        self.assertGreater(len(b.veloc), 10)
+
+
 if __name__ == '__main__':
     unittest.main()
