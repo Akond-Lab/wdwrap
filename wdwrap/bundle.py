@@ -1,5 +1,5 @@
 # coding=utf-8
-from os import path
+import pandas as pd
 from .parameters import ParameterSet
 from .parameter import Parameter
 from .parameter import MPAGE
@@ -35,8 +35,10 @@ wd_files = {
 
 
 class Bundle(ParameterSet):
-    # constants
-    MAPGE_RV = None
+    light_column_names = ['hjd', 'ph', 'L1', 'L2', 'Lcombined', 'Lnorm', 'separation', 'magnorm', 'mag',
+                          'timeshift']
+    veloc_column_names = ['hjd', 'ph', 'relrv1', 'relrv2', 'eclipsecorr1', 'eclipsecorr2', 'rv1', 'rv2',
+                          'timeshift', 'rvshift3b']
 
     def __init__(self, wdversion='2007'):
         super(Bundle, self).__init__()
@@ -82,23 +84,38 @@ class Bundle(ParameterSet):
         return hash(self) == hash(other)
 
     def lc(self):
+        """Runs WD `lc` program. No need to be called directly
+
+        An access to `light` or `veloc` properties calculates data if needed"""
         from .runners import LcRunner
         r = LcRunner()
         r.run(self)
 
+    def run_compute(self):
+        """Alias of `lc()`"""
+        self.lc()
+
+
     def reset(self):
         """Resets cashed results from lc"""
+        self._light = None
+        self._veloc = None
 
     @property
-    def light_cal(self):
+    def light(self):
         """Calculated (by LC) light curve"""
         if not self._light:
             self['MPAGE'] = MPAGE.LIGHT
             self.lc()
         return self._light
 
-    @light_cal.setter
-    def light_cal(self, val):
+    @property
+    def light_df(self):
+        """Calculated (by LC) light curve, returns pandas DataFrame"""
+        return pd.DataFrame(self.light, columns=self.light_column_names)
+
+    @light.setter
+    def light(self, val):
         self._light = val
 
     @property
@@ -108,6 +125,11 @@ class Bundle(ParameterSet):
             self['MPAGE'] = MPAGE.VELOC
             self.lc()
         return self._veloc
+
+    @property
+    def veloc_df(self):
+        """Calculated (by LC) radial velocity curve, returns pandas DataFrame"""
+        return pd.DataFrame(self.veloc, columns=self.veloc_column_names)
 
     @veloc.setter
     def veloc(self, val):

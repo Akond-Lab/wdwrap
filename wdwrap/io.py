@@ -3,11 +3,11 @@
 
 This module implements classes to read and write files used by WD code"""
 
-from __future__ import print_function
+#from __future__ import print_function
 from os import path
 from collections import OrderedDict
-import parameter as p
-from bundle import Bundle, ParameterSet
+from . import parameter as p
+from .bundle import Bundle, ParameterSet
 
 
 class IO(object):
@@ -155,7 +155,7 @@ class Reader_lcin(Reader):
         return self._bundles
 
     def _read(self):
-        import bundle
+        from . import bundle
         self._bundles = []
         while True:
             ln = self._read_line([p.MPAGE, p.NREF, p.MREF, p.IFSMV1, p.IFSMV2, p.ICOR1, p.ICOR2, p.IF3B, p.LD1, p.LD2])

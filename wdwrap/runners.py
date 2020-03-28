@@ -22,7 +22,9 @@ class LcRunner(object):
     def run(self, bundle):
         with WdTempDir(delete_on_exit=False) as d:
             self.write_lcin(bundle, d)
-            proc = subprocess.Popen([self.executable], cwd=d, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen([self.executable], cwd=d,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    universal_newlines=True)
             outs, errs = proc.communicate()
             errors = re.search(r'error:\s*(.*)', errs)
             if errors:
@@ -47,7 +49,7 @@ class LcRunner(object):
     def collet_file(self, directory, filename, bundle):
         filepath = os.path.join(directory, filename)
         if filename == 'light.dat':
-            bundle.light_cal = Reader_light(filepath).table
+            bundle.light = Reader_light(filepath).table
         elif filename == 'veloc.dat':
             bundle.veloc = Reader_veloc(filepath).table
 

@@ -30,6 +30,7 @@ class TestWD(unittest.TestCase):
     def test_bundle_repr(self):
         import wdwrap
         b = wdwrap.default_binary()
+        b['PERIOD'] = 2
         r = repr(b)
         self.assertIsNotNone(r)
 
@@ -42,6 +43,7 @@ class TestWD(unittest.TestCase):
         w = Writer_lcin(sys.stdout, bs)
         w.write()
 
+    @unittest.skip('Not implelented')
     def test_lc_read_write_read(self):
         try:
             from StringIO import StringIO  # Python 2
@@ -53,6 +55,9 @@ class TestWD(unittest.TestCase):
         b1 = wdwrap.default_binary()
         w = Writer_lcin(buf, [b1])
         w.write()
+        print (b)
+        b.lc(generate='light', filter='B')
+        plot(b.light)
         bufs = buf.getvalue()
         buf.seek(0)
         r = Reader_lcin(buf)
@@ -68,8 +73,12 @@ class TestWD(unittest.TestCase):
     def test_bundle_lc_run_light(self):
         import wdwrap
         b = wdwrap.default_binary()
-        b.lc()
-        self.assertGreater(len(b.light_cal), 10)
+        self.assertGreater(len(b.light), 10)
+
+    def test_bundle_lc_run_light_dataframe(self):
+        import wdwrap
+        b = wdwrap.default_binary()
+        self.assertGreater(len(b.light_df), 10)
 
     def test_bundle_lc_run_rv(self):
         import wdwrap
@@ -93,7 +102,7 @@ class TestWD(unittest.TestCase):
         # b.add_dataset('rv', times=phoebe.linspace(0, 2, 101))
         # b.run_compute()
         # b.plot(show=True)
-        b.set_value('TAVH', value=5000)
+        b.set_value('TAVH', value=50)
         b.set_value('RM', value=0.75)
         b.run_compute()
 

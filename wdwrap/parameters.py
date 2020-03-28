@@ -16,6 +16,35 @@ class ParameterSet(OrderedDict):
         else:
             self.update(ln)
 
+    def copy(self):
+        import copy
+        new = self.__class__(self)
+        for line in self.lines:
+            newline = OrderedDict()
+            for k, v in line.items():
+                if v.is_controlling():
+                    newline[k] = copy.copy(v) # Copy Control parameters
+                else:
+                    newline[k] = v
+            new.add_line(newline)
+        new.reindex()
+        return new
+
+    def reindex(self):
+        super(ParameterSet, self).clear()
+        for line in self.lines:
+            self.update(line)
+
+    def clear(self):
+        self.lines = []
+        super(ParameterSet, self).clear()
+
+    def set_value(self, key: int, value):
+        """phoebe style, equivalent `to b[key] = val` """
+        self[key] = value
+
+
+
     # def __init__(self, params : Optional[Sequence[Mapping[_KT, _VT]]] = None):
     #
     #     pass

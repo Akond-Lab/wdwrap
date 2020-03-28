@@ -12,9 +12,9 @@ with open('LICENSE.md') as f:
 setup(
     name='wdwrap',
     version='0.1.0',
-    description='Sample package description',
+    description='WD code wrapper',
     long_description=readme,
-    author='Mikolaj Kaluszynski',
+    author='Mikolaj Kaluszynski (AkondLab, CAMK)',
     author_email='mkalusz@camk.edu.pl',
     url='',
     license=license,
