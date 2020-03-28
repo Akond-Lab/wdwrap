@@ -4,12 +4,10 @@
 import astropy.constants as c
 import astropy.units as u
 
-from .bundle import Bundle
-from .parameter import MPAGE
-
 # Convenience functions
 
 def default_binary(default_file=None, bundleno=0):
+    from .bundle import Bundle
     """
     Returns default binary system bundle (set of parameters for LC program)
     Parameters

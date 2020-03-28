@@ -1,11 +1,13 @@
 # coding=utf-8
 import pandas as pd
+from .config import cfg
 from .parameters import ParameterSet
-from .parameter import Parameter
-from .parameter import MPAGE
+from .param import Parameter
+from .drivers import MPAGE
+#from .parameter import MPAGE
 
 
-from .config import default_cfg
+from .config import cfg
 
 
 
@@ -40,8 +42,10 @@ class Bundle(ParameterSet):
     veloc_column_names = ['hjd', 'ph', 'relrv1', 'relrv2', 'eclipsecorr1', 'eclipsecorr2', 'rv1', 'rv2',
                           'timeshift', 'rvshift3b']
 
-    def __init__(self, wdversion='2007'):
+    def __init__(self, wdversion=None):
         super(Bundle, self).__init__()
+        if wdversion is None:
+            wdversion = cfg().get('executables', 'version')
         self.wdversion = wdversion
         self._light = None
         self._veloc = None

@@ -15,8 +15,8 @@ class TestConfig(unittest.TestCase):
         import wdwrap.config
 
     def test_default(self):
-        from wdwrap.config import default_cfg
-        cfg = default_cfg()
+        from wdwrap.config import cfg
+        cfg = cfg()
         self.assertIsNotNone(cfg)
 
     def test_access(self):

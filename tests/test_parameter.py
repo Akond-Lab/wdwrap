@@ -12,8 +12,8 @@ class TestWD(unittest.TestCase):
 
     def test_import(self):
         """ Checks default binary construction"""
-        import wdwrap.parameter
-        stdev = wdwrap.parameter.STDEV(0.3)
+        import wdwrap.param
+        stdev = wdwrap.drivers.STDEV(0.3)
         self.assertGreater(len('{}'.format(stdev)), 0.0)
 
     def test_copy(self):

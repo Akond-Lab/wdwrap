@@ -83,7 +83,7 @@ class TestWD(unittest.TestCase):
     def test_bundle_lc_run_rv(self):
         import wdwrap
         b = wdwrap.default_binary()
-        b['MPAGE'] = wdwrap.MPAGE.VELOC
+        b['MPAGE'] = wdwrap.drivers.MPAGE.VELOC
         b.lc()
         self.assertGreater(len(b.veloc), 10)
 

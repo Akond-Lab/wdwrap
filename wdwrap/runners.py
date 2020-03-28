@@ -5,7 +5,7 @@ import subprocess32 as subprocess
 
 from .tempdir import WdTempDir
 from .io import *
-from .config import default_cfg
+from .config import cfg
 
 
 class Runner(object):
@@ -16,8 +16,7 @@ class LcRunner(object):
 
     def __init__(self):
         super(LcRunner, self).__init__()
-        cfg = default_cfg()
-        self.executable = cfg.get('executables', 'lc')
+        self.executable = cfg().get('executables', 'lc')
 
     def run(self, bundle):
         with WdTempDir(delete_on_exit=False) as d:

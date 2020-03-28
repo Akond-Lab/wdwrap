@@ -6,7 +6,7 @@ This module implements classes to read and write files used by WD code"""
 #from __future__ import print_function
 from os import path
 from collections import OrderedDict
-from . import parameter as p
+from . import drivers as p
 from .bundle import Bundle, ParameterSet
 
 

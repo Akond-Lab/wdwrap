@@ -38,9 +38,10 @@ class CfgHandler(ConfigParser, object):
         Load the configuration file in memory
         @raise CfgHandlerError: If configuration file cannot be loaded
         """
-        self._configFileInUse = (os.path.abspath(os.path.dirname(__file__)) + os.sep +
-                                 self._defaultConfigFileName) if cfg_file is None else cfg_file
+        if cfg_file is None:
+            cfg_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), self._defaultConfigFileName)
 
+        self._configFileInUse = cfg_file
         lst = self.read(self._configFileInUse)
 
         if len(lst) == 0:
@@ -54,3 +55,7 @@ class CfgHandler(ConfigParser, object):
         if cls._defaultInstance is None:
             cls._defaultInstance = CfgHandler()
         return cls._defaultInstance
+
+    @classmethod
+    def set_config_file(cls, cfg_file):
+        cls._defaultInstance = CfgHandler(cfg_file)
