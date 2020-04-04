@@ -42,7 +42,13 @@ class TmpDir:
 
 class WdTempDir(TmpDir):
 
+    def __init__(self, wdversion: str, delete_on_exit=True):
+        self.wdversion = wdversion
+        super().__init__(delete_on_exit)
+
     def _init_dir(self):
         TmpDir._init_dir(self)
-        for f in ['atmcof.dat', 'atmcofplanck.dat']:
-            os.symlink(Writer_lcin.default_wd_file_abspath(f), os.path.join(self.path, f))
+        srcdir = os.path.join(Writer_lcin.default_wd_files_path(), self.wdversion)
+
+        for f in os.scandir(srcdir):
+            os.symlink(f.path, os.path.join(self.path, f.name))

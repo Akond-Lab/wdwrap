@@ -645,10 +645,7 @@ class TCONJ3B(FloatParameter):
 #  LINE 8 bands
 
 
-class IBAND(IntParameter):
-    """Bands, band identification numbers (IBAND).
-    Response curves for bands 17 to 22 are rectangular, have widths of 20 nm and are centered on the wavelength (in nm)
-    indicated by their names."""
+class IBANDbase(IntParameter):
     fmt_lcin = FortranFormatter('i', 3)  # F.i3
     help_str = 'Band'
     min, max = 1, 25
@@ -659,6 +656,17 @@ class IBAND(IntParameter):
         23: 'TyB', 24: 'TyV', 25: 'HIP',
     }
     flags = ParFlag.outputspec | ParFlag.lc
+
+class IBAND(IBANDbase):
+    """Bands, band identification numbers (IBAND).
+    Response curves for bands 17 to 22 are rectangular, have widths of 20 nm and are centered on the wavelength (in nm)
+    indicated by their names."""
+    help_val = {
+        1: 'u', 2: 'v', 3: 'b', 4: 'y',
+        5: 'U', 6: 'B', 7: 'V', 8: 'R', 9: 'I', 10: 'J', 11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'Rc', 16: 'Ic',
+        17: '230', 18: '250', 19: '270', 20: '290', 21: '310', 22: '330',
+        23: 'TyB', 24: 'TyV', 25: 'HIP',
+    }
 
 class HLUM(FloatParameter):
     """(L1) Bandpass luminosity of star 1, used if  IPB = 1"""
@@ -746,7 +754,7 @@ class WL(FloatParameter):  # WLA
     Wavelengths are no longer used for light curves, which now are based on integrated bandpass radiation.
     Wavelengths are still entered for use as reference wavelengths for line profiles and for opacity computations in
     circumstellar attenuation."""
-    fmt_lcin = FortranFormatter('f', 8, 5, Flags.ZERO)  # F.f9_6
+    fmt_lcin = FortranFormatter('f', 8, 6, Flags.ZERO)  # F.f9_6
     help_str = 'Reference wavelength'
     unit = u.micron
     flags = ParFlag.curvedep | ParFlag.lc | ParFlag.dc

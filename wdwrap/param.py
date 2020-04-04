@@ -55,12 +55,12 @@ class F:
 
 class ParFlag:
     none        = 0b00000000
-    controlling = 0b00000001
-    fittable    = 0b00000010
-    curvedep    = 0b00000100
-    outputspec  = 0b00001000
-    lc          = 0b00010000
-    dc          = 0b00100000
+    controlling = 0b00000001  #  does not affect model
+    fittable    = 0b00000010  #  can be fitted (by DC)
+    curvedep    = 0b00000100  #  curve specific (may be different for different curves)
+    outputspec  = 0b00001000  #  affects only output e.g. points
+    lc          = 0b00010000  #  LC in
+    dc          = 0b00100000  #  DC in
 
 class Parameter(object):
     format_str = '{}'

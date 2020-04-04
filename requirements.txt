@@ -1,3 +1,11 @@
 pandas
+numpy
 subprocess32
 astropy
+voila
+voila-gridstack
+voila-vuetify
+bqplot
+ipyvuetify
+jupyter
+ipywidgets

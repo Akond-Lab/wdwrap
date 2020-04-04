@@ -19,7 +19,7 @@ class LcRunner(object):
         self.executable = cfg().get('executables', 'lc')
 
     def run(self, bundle):
-        with WdTempDir(delete_on_exit=False) as d:
+        with WdTempDir(bundle.wdversion, delete_on_exit=False) as d:
             self.write_lcin(bundle, d)
             proc = subprocess.Popen([self.executable], cwd=d,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,

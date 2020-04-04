@@ -5,9 +5,11 @@ This module implements classes to read and write files used by WD code"""
 
 #from __future__ import print_function
 from os import path
+import logging
 from collections import OrderedDict
 from . import drivers as p
 from .bundle import Bundle, ParameterSet
+from .drivers.filestructure import FileStructure
 
 
 class IO(object):
@@ -139,13 +141,18 @@ class Reader_lcin(Reader):
 
     Parameters
     ----------
-    input : str or file-like
+    filepath : str or file-like
         File to be read, either file-like object or pathname string.
+    version : WD version
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, filepath=None, version=None):
         super(Reader_lcin, self).__init__(filepath)
         self._bundles = None
+        if version is None:
+            from .config import cfg
+            version = cfg().get('executables', 'version')
+        self.version = version
 
     @property
     def bundles(self):
@@ -158,62 +165,67 @@ class Reader_lcin(Reader):
         from . import bundle
         self._bundles = []
         while True:
-            ln = self._read_line([p.MPAGE, p.NREF, p.MREF, p.IFSMV1, p.IFSMV2, p.ICOR1, p.ICOR2, p.IF3B, p.LD1, p.LD2])
+            ln = self._read_line_no(0)
             if ln['MPAGE'].isnan():
                 break
             b = bundle.Bundle()
             self._bundles.append(b)
             b.add_line(ln)
-            ln = self._read_line([p.JDPHS, p.HJD0, p.PERIOD, p.DPDT, p.PSHIFT, p.STDEV, p.NOISE, p.SEED])
+            ln = self._read_line_no(1)
             b.add_line(ln)
-            ln = self._read_line([p.HJDST, p.HJDSP, p.HJDIN, p.PHSTRT, p.PHSTOP, p.PHIN, p.PHN])
+            ln = self._read_line_no(2)
             b.add_line(ln)
-            ln = self._read_line([p.MODE, p.IPB, p.IFAT1, p.IFAT2, p.N1, p.N2, p.PERR0, p.DPERDT, p.THE, p.VUNIT])
+            ln = self._read_line_no(3)
             b.add_line(ln)
-            ln = self._read_line([p.E, p.A, p.F1, p.F2, p.VGA, p.XINCL, p.GR1, p.GR2, p.ABUNIN])
+            ln = self._read_line_no(4)
             b.add_line(ln)
-            ln = self._read_line(
-                [p.TAVH, p.TAVC, p.ALB1, p.ALB2, p.POTH, p.POTC, p.RM, p.XBOL1, p.XBOL2, p.YBOL1, p.YBOL2])
+            ln = self._read_line_no(5)
             b.add_line(ln)
-            ln = self._read_line([p.A3B, p.P3B, p.XINC3B, p.E3B, p.PERR3B, p.TCONJ3B])
+            ln = self._read_line_no(6)
             b.add_line(ln)
-            ln = self._read_line(
-                [p.IBAND, p.HLUM, p.CLUM, p.XH, p.XC, p.YH, p.YC, p.EL3, p.OPSF, p.ZERO, p.FACTOR, p.WL])
+            ln = self._read_line_no(7)
             b.add_line(ln)
             if b['MPAGE'] == 3:  # Spectral lines to be generated
-                ln = self._read_line([p.BINWM1, p.SC1, p.SL1, p.NF1])
+                ln = self._read_line_no(8) #[p.BINWM1, p.SC1, p.SL1, p.NF1])
                 b.add_line(ln)
                 while True:
-                    ln = self._read_line([p.WLL, p.EWID, p.DEPTH, p.KKS])
+                    ln = self._read_line_no(9) #[p.WLL, p.EWID, p.DEPTH, p.KKS])
                     if ln['WLL'].isnan():
                         break
                     b.add_line(ln, 'spectral1')
-                ln = self._read_line([p.BINWM2, p.SC2, p.SL2, p.NF2])
+                ln = self._read_line_no(10) # [p.BINWM2, p.SC2, p.SL2, p.NF2])
                 b.add_line(ln)
                 while True:
-                    ln = self._read_line([p.WLL, p.EWID, p.DEPTH, p.KKS])
+                    ln = self._read_line_no(11) # [p.WLL, p.EWID, p.DEPTH, p.KKS])
                     if ln['WLL'].isnan():
                         break
                     b.add_line(ln, 'spectral2')
             # Spots
             for collection in ['spots1', 'spots2']:
                 while True:
-                    ln = self._read_line([p.XLAT, p.XLONG, p.RADSP, p.TEMSP])
+                    ln = self._read_line_no(12) #[p.XLAT, p.XLONG, p.RADSP, p.TEMSP])
                     if ln['XLAT'].isnan():
                         break
                     b.add_line(ln, collection)
             # Clouds
             while True:
-                ln = self._read_line([p.XCL, p.YCL, p.ZCL, p.RCL, p.OP1, p.FCL, p.EDENS, p.XMUE, p.ENCL])
+                ln = self._read_line_no(13) #[p.XCL, p.YCL, p.ZCL, p.RCL, p.OP1, p.FCL, p.EDENS, p.XMUE, p.ENCL])
                 if ln['XCL'].isnan():
                     break
                 b.add_line(ln, 'clouds')
 
+    def _read_line_no(self, line_no: int):
+        return self._read_line(FileStructure.line_classes_list('lcin', self.version, line_no))
+        
     def _read_line(self, parameters):
         lns = self.fd.readline().split()
         lnd = OrderedDict()
         for cls, val in zip(parameters, lns):
-            lnd[cls.name()] = cls(val)
+            try:
+                lnd[cls.name()] = cls(val)
+            except (ValueError, TypeError) as e:
+                logging.exception(f'Cannot create instance of {cls.name()} initialized with {val}', exc_info=e)
+                raise e
         return lnd
 
 

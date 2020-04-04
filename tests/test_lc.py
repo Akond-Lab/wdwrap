@@ -17,7 +17,7 @@ class TestWD(unittest.TestCase):
         from wdwrap.io import Reader_lcin
 
         self.assertTrue(
-            os.path.isfile(Reader_lcin.default_wd_file_abspath('lcin_original.active'))
+            os.path.isfile(Reader_lcin.default_wd_file_abspath('lcin.default.2007.active'))
         )
 
     def test_default_binary(self):
@@ -102,7 +102,7 @@ class TestWD(unittest.TestCase):
         # b.add_dataset('rv', times=phoebe.linspace(0, 2, 101))
         # b.run_compute()
         # b.plot(show=True)
-        b.set_value('TAVH', value=50)
+        b.set_value('TAVH', value=5)
         b.set_value('RM', value=0.75)
         b.run_compute()
 

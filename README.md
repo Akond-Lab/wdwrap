@@ -11,3 +11,11 @@ a good idea, although a simple "What's New" section for the most recent version
 may be appropriate.
 
 [1] ftp://ftp.astro.ufl.edu/pub/wilson
+
+
+## Instalation
+
+#### Server extension:
+```
+    jupyter serverextension enable voila --sys-prefix
+```
