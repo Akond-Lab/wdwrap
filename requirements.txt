@@ -1,3 +1,5 @@
+traittypes
+traitlets
 pandas
 numpy
 subprocess32

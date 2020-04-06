@@ -48,7 +48,7 @@ class LcRunner(object):
     def collet_file(self, directory, filename, bundle):
         filepath = os.path.join(directory, filename)
         if filename == 'light.dat':
-            bundle.light = Reader_light(filepath).table
+            bundle.light = Reader_light(filepath).df
         elif filename == 'veloc.dat':
-            bundle.veloc = Reader_veloc(filepath).table
+            bundle.veloc = Reader_veloc(filepath).df
 

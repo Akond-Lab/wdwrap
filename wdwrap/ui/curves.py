@@ -1,68 +1,67 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
-import pandas as pd
+
 import numpy as np
+from traitlets import HasTraits, Bool, Int, Float
+from traittypes import DataFrame
 
-class CurvesList(object):
+"""
+Module contains three families of classes:
+   * `CurveTransformer` : transformers od dataframe (binning/resampling)
+   * `CurveValues` : represents Dataframe with indempendent variable and one or more values
+   * `Curve` : The curve with metadata, observed CurveValues, model-generated CurveValues
+"""
 
-    def __init__(self) -> None:
-        super().__init__()
+class CurveTransformer(HasTraits):
+    """Transformes one dataframe into another"""
+    def __init__(self, *args, col_independent='ph', col_values=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.col_independent = col_independent
+        self.col_values = ['mag'] if col_values is None else col_values
 
-        dtypes = np.dtype(self.column_dtypes())
-        self.df = pd.DataFrame(np.empty(0, dtypes))
+    def transform(self, dt):
+        return dt
 
-    def _columns(self):
-        raise NotImplementedError
+class CurveResampler(CurveTransformer):
+    """Resamples original dataframe into `k` bins, from min to max
 
-    def columns(self, with_data=False):
-        c = self._columns()
-        if with_data:
-            c.append(('data', object, None))
-        return c
+    `k == 0` maens: no transformation.
+    `min,max == None` means: take `min()` or `max()` from source dataframe
+    """
+    k = Int(min=0)
+    vmin = Float(allow_none=True)
+    vmax = Float(allow_none=True)
 
-    def add(self, **kwargs):
-        item = self._default_item()
-        item.update(kwargs)
-        try:
-            size = len(kwargs['data'])
-            item['size'] = size
-        except (TypeError, LookupError):
-            pass
-        self.df.loc[len(self.df)] = item
+    def __init__(self, *args, k=0, vmin=0.0, vmax=1.0, col_independent='ph', col_values=None, **kwargs):
+        super().__init__(*args, col_independent=col_independent, col_values=col_values,
+                         k=k, vmin=vmin, vmax=vmax, **kwargs)
 
-    def column_dtypes(self):
-        return [(n, t) for (n, t, _) in self.columns(with_data=True)]
-
-    def column_names(self, with_data=False):
-        return [v[0] for v in self.columns(with_data=with_data)]
-
-    def headers_json(self):
-        return [{'text': v, 'value': v} for v in self.column_names()]
-
-    def items_json(self):
-        cols = self.column_names()
-        return [{c: r[c] for c in cols} for _, r in self.df.iterrows()]
-
-    def _default_item(self):
-        return {n: v for (n, _, v) in self.columns(with_data=True)}
+    def transform(self, dt):
+        if self.k > 0:
+            mi = dt[self.col_independent].min() if self.vmin is None else self.vmin
+            ma = dt[self.col_independent].max() if self.vmax is None else self.vmax
+            binwidth = (ma - mi) / self.k
+            ind = np.linspace(mi, ma, self.k)
+            ind += binwidth / 2  # put independent values in the center of bins
+        else:
+            return super().transform(dt)
 
 
-class LcCurvesList(CurvesList):
+class CurveValues(HasTraits):
+    dt = DataFrame()
+    plot = Bool()
 
-    def _columns(self):
-        return [('active', bool, True),
-                ('plot', bool, True),
-                ('band', str, 'V'),
-                ('bin', int, 1),
-                ('size', int, 0),
-                ('file', str, ''),
-                ]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-class RvCurvesList(CurvesList):
+    @property
+    def n(self):
+        return len(self.dt)
 
-    def _columns(self):
-        return [('active', bool, True),
-                ('plot', bool, True),
-                ('bin', int, 1),
-                ('size', int, 0),
-                ('file', str, ''),
-                ]
+
+class ConvertedValues(CurveValues):
+    """Keeps additional 'original' dataframe which is converted somehow into
+    `CurveValues.dt` """
+
+
+class Curve(HasTraits):
+    pass

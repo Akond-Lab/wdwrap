@@ -12,19 +12,19 @@ class TestUiCurves(unittest.TestCase):
         pass
 
     def test_lc_headers_json(self):
-        from wdwrap.ui import LcCurvesList
+        from wdwrap.ui.curveslist import LcCurvesList
         lcs = LcCurvesList()
         lcs.add(band='V', file='qqwqwq.txt')
         self.assertEqual(len(lcs.headers_json()), len(lcs.columns()))
 
     def test_lc_items_json(self):
-        from wdwrap.ui import LcCurvesList
+        from wdwrap.ui.curveslist import LcCurvesList
         lcs = LcCurvesList()
         lcs.add(band='V', file='qqwqwq.txt')
         self.assertEqual(len(lcs.items_json()), 1)
 
     def test_rv_items_json(self):
-        from wdwrap.ui import RvCurvesList
+        from wdwrap.ui.curveslist import RvCurvesList
         lcs = RvCurvesList()
         lcs.add(file='qqwqwq.txt')
         self.assertEqual(len(lcs.items_json()), 1)

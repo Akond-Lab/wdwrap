@@ -75,11 +75,6 @@ class TestWD(unittest.TestCase):
         b = wdwrap.default_binary()
         self.assertGreater(len(b.light), 10)
 
-    def test_bundle_lc_run_light_dataframe(self):
-        import wdwrap
-        b = wdwrap.default_binary()
-        self.assertGreater(len(b.light_df), 10)
-
     def test_bundle_lc_run_rv(self):
         import wdwrap
         b = wdwrap.default_binary()
