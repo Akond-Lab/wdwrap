@@ -1,5 +1,6 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
+from itertools import chain
 
 class FileStructure(object):
     _instance = None  # singlethon
@@ -61,12 +62,21 @@ class FileStructure(object):
         return cls._instance
 
     @classmethod
-    def line_classes_list(cls, filetype, version, line_no):
-        return cls.get_instance().line_classes_list_(filetype, version, line_no)
+    def line_classes_list(cls, filetype, version, line_no=None):
+        return cls.get_instance().line_classes_list_(filetype, version, line_no=line_no)
 
-
-    def line_classes_list_(self, filetype, version, line_no):
-        return self._structure[version][filetype][line_no]
+    def line_classes_list_(self, filetype, version, line_no=None):
+        try:
+            iter(line_no)
+        except TypeError:
+            if line_no is None:
+                line_no = range(len(self._structure[version][filetype]))
+            else:
+                line_no = [line_no]
+        flattener = chain.from_iterable  # list of lists -> single list
+        select = [self._structure[version][filetype][l] for l in line_no]
+        ret = list(flattener(select))
+        return ret
 
     def parse_wd_files(self):
         import importlib
