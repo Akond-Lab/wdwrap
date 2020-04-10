@@ -3,8 +3,12 @@
 from collections import OrderedDict
 import numpy as np
 import pandas as pd
-from traitlets import HasTraits, Bool, Int, Float
+from traitlets import HasTraits, Bool, Int, Float, Instance
 from traittypes import DataFrame
+
+from .wdtraits import WdParamTraitCollection
+from ..bundle import Bundle
+from ..param import ParFlag
 
 """
 Module contains three families of classes:
@@ -134,4 +138,21 @@ class Curve(HasTraits):
         self.obs_values = ObserverdValues()
 
 class WdCurve(Curve):
+    wdparams = Instance(WdParamTraitCollection,
+                        kw={'flags_any': ParFlag.curvedep})
+
+    def __init__(self, *args, bundle: Bundle = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if bundle is not None:
+            self.init_from_bundle(bundle)
+
+    def init_from_bundle(self, bundle):
+        self.wdparams
+
+
+
+class LightCurve(WdCurve):
+    pass
+
+class VelocCurve(WdCurve):
     pass

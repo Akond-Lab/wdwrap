@@ -5,8 +5,18 @@ Unit tests of WD parameters
 """
 import unittest
 
-
 class TestUiCurves(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_curve_contruction(self):
+        from wdwrap.ui.curves import LightCurve, VelocCurve
+        lc = LightCurve()
+        vc = VelocCurve()
+        self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
+        self.assertRaises(LookupError, lambda: lc.wdparams.param_dict['XLAT'])
+
+class TestUiCurveLists(unittest.TestCase):
 
     def setUp(self):
         pass

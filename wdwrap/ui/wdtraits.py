@@ -52,6 +52,13 @@ class WdParamTrait(HasTraits):
     def set_from_parameter(self, value: Parameter):
         self.value = value.val
 
+    @property
+    def name(self):
+        try:
+            return self.value.name()
+        except (AttributeError, TypeError):
+            return self.pclass.name()
+
 
 class WdParamTraitCollection(HasTraits):
     params = List()
@@ -62,6 +69,10 @@ class WdParamTraitCollection(HasTraits):
         if flags_any or flags_all or flags_not:
             self.initialize_according_to_flags(flags_any=flags_any, flags_all=flags_all, flags_not=flags_not,
                                                wdversion=wdversion)
+
+    @property
+    def param_dict(self):
+        return {p.name: p for p in self.params}
 
     def initialize_according_to_flags(self, flags_any=None, flags_all=None, flags_not=None, lines=None, wdversion=None):
         if wdversion is None:
@@ -76,6 +87,7 @@ class WdParamTraitCollection(HasTraits):
         self.initialize_with_classes(lst)
 
     def initialize_with_classes(self, pclasslst):
+        self.params = []
         for c in pclasslst:
             self.params.append(WdParamTrait(pclass=c))
 
