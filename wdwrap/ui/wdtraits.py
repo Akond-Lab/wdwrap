@@ -70,6 +70,9 @@ class WdParamTraitCollection(HasTraits):
             self.initialize_according_to_flags(flags_any=flags_any, flags_all=flags_all, flags_not=flags_not,
                                                wdversion=wdversion)
 
+    def __getitem__(self, key):
+        return self.param_dict[key]
+
     @property
     def param_dict(self):
         return {p.name: p for p in self.params}

@@ -9,6 +9,14 @@ class ProjectTestCase(unittest.TestCase):
         from wdwrap.ui import Project
         p = Project()
 
+    def test_project_default_values(self):
+        from wdwrap.ui import Project
+        p = Project()
+        self.assertIsNotNone(p.light_curves[0].wdparams['IBAND'])
+        self.assertIsNotNone(p.veloc_curves[0].wdparams['IBAND'])
+        self.assertIsNotNone(p.control_parameters['MPAGE'])
+        self.assertIsNotNone(p.model_parameters['YCL'])
+
     def test_project_bundle_rw(self):
         from wdwrap.ui import Project
         p = Project()

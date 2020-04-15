@@ -14,13 +14,13 @@ class Project(HasTraits):
                                   kw={'flags_any': ParFlag.controlling, 'flags_not': ParFlag.curvedep})
     model_parameters   = Instance(WdParamTraitCollection,
                                   kw={'flags_not': ParFlag.curvedep|ParFlag.controlling})
-    bundle = Instance(Bundle, ())
 
     def __init__(self) -> None:
         super().__init__()
+        self.bundle: Bundle = Bundle.default_binary()
         self.light_curves = [LightCurve(self.bundle)]
         self.veloc_curves = [VelocCurve(self.bundle)]
-        self.read_bundle()
+        self.read_bundle()  # (light_curves=True, veloc_curves=True)
 
     def read_bundle(self, bundle=None, light_curves=False, veloc_curves=False):
         """Copies boundle parameters to trait parameters

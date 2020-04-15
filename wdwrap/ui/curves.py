@@ -9,6 +9,7 @@ from traittypes import DataFrame
 from .wdtraits import WdParamTraitCollection
 from ..bundle import Bundle
 from ..param import ParFlag
+from ..parameters import ParameterSet
 
 """
 Module contains three families of classes:
@@ -144,10 +145,10 @@ class WdCurve(Curve):
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
         if bundle is not None:
-            self.init_from_bundle(bundle)
+            self.read_bundle(bundle)
 
-    def init_from_bundle(self, bundle):
-        self.wdparams
+    def read_bundle(self, bundle: ParameterSet, set_fit=False):
+        self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
 
 
 

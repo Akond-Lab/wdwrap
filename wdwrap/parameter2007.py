@@ -20,7 +20,7 @@ class MPAGE(IntParameter):
     SPECT = 3
     RELAT = 4
     IMAGE = 5
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.outputspec | ParFlag.controlling | ParFlag.lc
 
 
 class NREF(IntParameter):
@@ -655,7 +655,7 @@ class IBANDbase(IntParameter):
         17: '230', 18: '250', 19: '270', 20: '290', 21: '310', 22: '330',
         23: 'TyB', 24: 'TyV', 25: 'HIP',
     }
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvedep | ParFlag.outputspec | ParFlag.lc
 
 class IBAND(IBANDbase):
     """Bands, band identification numbers (IBAND).
@@ -667,6 +667,7 @@ class IBAND(IBANDbase):
         17: '230', 18: '250', 19: '270', 20: '290', 21: '310', 22: '330',
         23: 'TyB', 24: 'TyV', 25: 'HIP',
     }
+
 
 class HLUM(FloatParameter):
     """(L1) Bandpass luminosity of star 1, used if  IPB = 1"""
