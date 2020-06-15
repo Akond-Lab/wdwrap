@@ -1,5 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
-from traitlets import List, Instance, HasTraits
+from traitlets import List, Instance, HasTraits, Int
 
 from .wdtraits import WdParamTraitCollection
 from ..bundle import Bundle
@@ -10,16 +10,20 @@ from ..param import ParFlag
 class Project(HasTraits):
     light_curves = List()
     veloc_curves = List()
-    control_parameters = Instance(WdParamTraitCollection,
-                                  kw={'flags_any': ParFlag.controlling, 'flags_not': ParFlag.curvedep})
-    model_parameters   = Instance(WdParamTraitCollection,
-                                  kw={'flags_not': ParFlag.curvedep|ParFlag.controlling})
+    light_curves_len = Int(default_value=0)
+    veloc_curves_len = Int(default_value=0)
+
+    parameters = Instance(WdParamTraitCollection, kw={'flags_any': ParFlag.lc})
+    # model_parameters   = Instance(WdParamTraitCollection,
+    #                               kw={'flags_not': ParFlag.curvedep|ParFlag.controlling})
 
     def __init__(self) -> None:
         super().__init__()
         self.bundle: Bundle = Bundle.default_binary()
-        self.light_curves = [LightCurve(self.bundle)]
-        self.veloc_curves = [VelocCurve(self.bundle)]
+        self.light_curves = [LightCurve(bundle=self.bundle, fit=True)]
+        self.veloc_curves = [VelocCurve(bundle=self.bundle, fit=True)]
+        self.light_curves_len = 1
+        self.veloc_curves_len = 1
         self.read_bundle()  # (light_curves=True, veloc_curves=True)
 
     def read_bundle(self, bundle=None, light_curves=False, veloc_curves=False):
@@ -33,7 +37,7 @@ class Project(HasTraits):
         """
         if bundle is None:
             bundle = self.bundle
-        for parset in [self.control_parameters, self.model_parameters] + self.select_curves(light_curves, veloc_curves):
+        for parset in [self.parameters] + self.select_curves(light_curves, veloc_curves):
             parset.read_bundle(bundle)
 
 
@@ -48,7 +52,7 @@ class Project(HasTraits):
         """
         if bundle is None:
             bundle = self.bundle
-        for parset in [self.control_parameters, self.model_parameters] + self.select_curves(light_curves, veloc_curves):
+        for parset in [self.parameters] + self.select_curves(light_curves, veloc_curves):
             parset.write_bundle(bundle)
 
     def select_curves(self, light_curves=False, veloc_curves=False):
@@ -81,3 +85,29 @@ class Project(HasTraits):
         elif isinstance(selection, int):
             selection = [selection]
         return [lst[i] for i in selection]
+
+    def new_curve(self, rv: bool):
+        print(f'New curve expected: rv={rv}')
+        if rv:
+            clist = self.veloc_curves
+            cclass = VelocCurve
+        else:
+            clist = self.light_curves
+            cclass = LightCurve
+
+        new = cclass(bundle=self.bundle, fit=True)
+        clist.append(new)
+        if rv:
+            self.veloc_curves_len += 1
+        else:
+            self.light_curves_len += 1
+        return new
+
+    def delete_curve(self, curve):
+        try :
+            self.veloc_curves.remove(curve)
+            self.veloc_curves_len -= 1
+        except ValueError:
+            self.light_curves.remove(curve)
+            self.light_curves_len -= 1
+

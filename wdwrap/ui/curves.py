@@ -1,9 +1,11 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
 from collections import OrderedDict
+from typing import Union
+
 import numpy as np
 import pandas as pd
-from traitlets import HasTraits, Bool, Int, Float, Instance
+from traitlets import HasTraits, Bool, Int, Float, Instance, validate, Unicode
 from traittypes import DataFrame
 
 from .wdtraits import WdParamTraitCollection
@@ -43,6 +45,8 @@ class CurvePhaser(CurveTransformer):
     def transform(self, df):
         try:
             ph = ((df[self.col_hjd] - self.hjd0) / self.period + self.delta) % 1.0
+        except KeyError:  # no hjd column
+            return df
         except TypeError:  #  period is None
             mi = df[self.col_hjd].min()
             ma = df[self.col_hjd].max()
@@ -59,16 +63,17 @@ class CurveResampler(CurveTransformer):
     `k == 0` maens: no transformation.
     `min,max == None` means: take `min()` or `max()` from source dataframe
     """
-    k = Int(min=0)
+    k = Int(min=5, default_value=20)
+    active = Bool(default_value=False)
     vmin = Float(allow_none=True)
     vmax = Float(allow_none=True)
 
-    def __init__(self, *args, k=0, vmin=0.0, vmax=1.0, col_independent='ph', col_values=None, **kwargs):
+    def __init__(self, *args, k=20, vmin=0.0, vmax=1.0, col_independent='ph', col_values=None, **kwargs):
         super().__init__(*args, col_independent=col_independent, col_values=col_values,
                          k=k, vmin=vmin, vmax=vmax, **kwargs)
 
     def transform(self, df):
-        if self.k > 0:
+        if self.active and self.k > 0:
             mi = df[self.col_independent].min() if self.vmin is None else self.vmin
             ma = df[self.col_independent].max() if self.vmax is None else self.vmax
             binwidth = (ma - mi) / self.k
@@ -84,15 +89,32 @@ class CurveResampler(CurveTransformer):
 #####################################################
 
 class CurveValues(HasTraits):
-    df = DataFrame()
+    df_version = Int()  # observe for transformed data change
+    dataframe = Instance(pd.DataFrame, ())  # observe for original dataframe change
     plot = Bool()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, df=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if df is not None:
+            self.dataframe = df
+
+    def invalidate(self):
+        self.df_version += 1
+
+    @property
+    def df(self):
+        return self.dataframe
+
+    def set_df(self, df):
+        self.invalidate()
+        self.dataframe = df
 
     @property
     def n(self):
         return len(self.df)
+
+    def empty(self):
+        return self.n == 0
 
 
 class ConvertedValues(CurveValues):
@@ -101,30 +123,52 @@ class ConvertedValues(CurveValues):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.original_df = None
+        self.cached_df = None
         self.transformers = OrderedDict([
             ('phaser', CurvePhaser()),
             ('resampler', CurveResampler())
         ])
+        self.scan_transformers()
 
-    def transform(self):
-        df = self.original_df
+    def scan_transformers(self):
+        for t in self.transformers.values():
+            t.observe(lambda change: self.on_transformer_changed(change))
+
+    def on_transformer_changed(self, change):
+        self.invalidate()
+
+    def transform(self, df):
         for trans in self.transformers.values():
             df = trans.transform(df)
-        self.df = df
+        return df
+
+    def invalidate(self):
+        self.cached_df = None
+        super().invalidate()
 
     @property
-    def orgN(self):
-        return len(self.original_df)
+    def df(self):
+        if self.cached_df is None:
+            self.cached_df = self.transform(self.dataframe)
+        return self.cached_df
+
 
 class ObserverdValues(ConvertedValues):
+    filename = Unicode()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.filename = None
 
     def load(self, fd):
         pass
+
+    @property
+    def phaser(self) -> CurvePhaser:
+        return self.transformers['phaser']
+
+    @property
+    def resampler(self) -> CurveResampler:
+        return self.transformers['resampler']
 
 class GeneratedValues(CurveValues):
     pass
@@ -141,6 +185,8 @@ class Curve(HasTraits):
 class WdCurve(Curve):
     wdparams = Instance(WdParamTraitCollection,
                         kw={'flags_any': ParFlag.curvedep})
+    plot = Bool(default_value=True)
+    fit = Bool(default_value=False)
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -151,9 +197,11 @@ class WdCurve(Curve):
         self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
 
 
-
 class LightCurve(WdCurve):
-    pass
+    @classmethod
+    def is_rv(cls): return False
+
 
 class VelocCurve(WdCurve):
-    pass
+    @classmethod
+    def is_rv(cls): return True

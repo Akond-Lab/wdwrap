@@ -14,8 +14,8 @@ class ProjectTestCase(unittest.TestCase):
         p = Project()
         self.assertIsNotNone(p.light_curves[0].wdparams['IBAND'])
         self.assertIsNotNone(p.veloc_curves[0].wdparams['IBAND'])
-        self.assertIsNotNone(p.control_parameters['MPAGE'])
-        self.assertIsNotNone(p.model_parameters['YCL'])
+        self.assertIsNotNone(p.parameters['MPAGE'])
+        self.assertIsNotNone(p.parameters['YCL'])
 
     def test_project_bundle_rw(self):
         from wdwrap.ui import Project
@@ -34,6 +34,26 @@ class ProjectTestCase(unittest.TestCase):
         p.write_bundle(b2)
         self.assertAlmostEqual(b2['TAVH'].val, 5)
         self.assertAlmostEqual(b2['RM'].val, 0.75)
+
+
+    def test_project_add_curve(self):
+        from wdwrap.ui import Project
+        p = Project()
+        n = len(p.light_curves)
+        observed = False
+        def h(change):
+            nonlocal observed
+            observed = True
+        p.observe(h, 'light_curves_len')
+        self.assertFalse(observed)
+        p.new_curve(rv=False)
+        self.assertGreater(len(p.light_curves), n)
+        self.assertTrue(observed)
+
+        import ipywidgets as widgets
+        widgets.FileUpload
+        import ipyvuetify as v
+        v.DataTable()
 
 
 if __name__ == '__main__':

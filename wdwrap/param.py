@@ -94,7 +94,8 @@ class Parameter(object):
     # def __format__(self, format_spec: str) -> str:
     #     return ('{:' + format_spec + '}').format(self)
 
-    def format(self, val, fmt):
+    @classmethod
+    def format(cls, val, fmt):
         return fmt.format(val)
 
     def isnan(self):
@@ -104,6 +105,10 @@ class Parameter(object):
         return bool(self.flags & ParFlag.controlling)
 
     def from_str(self, val):
+        self.val = self.scan_str(val)
+
+    @classmethod
+    def scan_str(cls, val):
         raise NotImplementedError('from_str method should be overridden')
 
     def to_python(self):
@@ -126,8 +131,9 @@ class FloatParameter(Parameter):
     def __float__(self):
         return float(self.val)
 
-    def from_str(self, val):
-        self.val = float(re.sub('[dD]', 'e', val, 1))
+    @classmethod
+    def scan_str(cls, val):
+        return float(re.sub('[dD]', 'e', val, 1))
 
     def to_python(self):
         """Coverts variable to corresponding python type"""
@@ -138,10 +144,18 @@ class IntParameter(Parameter):
     def __int__(self):
         return int(self.val)
 
-    def from_str(self, val):
-        self.val = int(val)
+    @classmethod
+    def scan_str(cls, val):
+        return int(val)
 
     def to_python(self):
         """Coverts variable to corresponding python type"""
         return int(self)
+
+    def help_str_value(self):
+        """help string corresponding to value """
+        if self.help_val is None:
+            return str(self.val)
+        else:
+            return self.help_val[self.val]
 

@@ -1,4 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+import logging
 
 from traitlets import HasTraits, Float, Int, Enum, Bool, List
 from ..param import Parameter, FloatParameter, IntParameter, ParFlag
@@ -12,7 +13,7 @@ class WdParamTrait(HasTraits):
 
     def __init__(self, *args, pclass=None, value=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pclass = None
+        self.pclass: Parameter = None
         # self.fit = None
         if pclass is None and isinstance(value, Parameter):
             pclass = type(value)
@@ -22,7 +23,7 @@ class WdParamTrait(HasTraits):
                 if isinstance(value, Parameter):
                     self.set_from_parameter(value)
                 else:
-                    self.value = value
+                    self.val = value
         elif value is not None:
             raise TypeError(f'pclass not specified in constructor, can not initialize with value {value}')
 
@@ -49,13 +50,25 @@ class WdParamTrait(HasTraits):
         if pclass.flags & ParFlag.fittable:
             self.fit = False
 
+    @property
+    def ui_val(self):
+        return self.pclass.format(self.val, self.pclass.fmt_lcin)
+
+    @ui_val.setter
+    def ui_val(self, uival):
+        self.val = self.pclass.scan_str(uival)
+
     def set_from_parameter(self, value: Parameter):
-        self.value = value.val
+        try:
+            self.val = value.val
+        except TypeError as e:
+            logging.exception(f'Cannot set parameter value {value} for {self.pclass}', exc_info=e)
+            raise e
 
     @property
     def name(self):
         try:
-            return self.value.name()
+            return self.val.name()
         except (AttributeError, TypeError):
             return self.pclass.name()
 
@@ -100,7 +113,7 @@ class WdParamTraitCollection(HasTraits):
                 wdp = bundle[p.pclass.name()]
             except LookupError:
                 continue
-            p.value = wdp.val
+            p.set_from_parameter(wdp)
             if p.fit is not None and set_fit:
                 p.fit = not wdp.fix
 
@@ -110,7 +123,7 @@ class WdParamTraitCollection(HasTraits):
                 wdp = bundle[p.pclass.name()]
             except LookupError:
                 continue
-            wdp.val = p.value
+            wdp.val = p.val
             if p.fit is not None and set_fit:
                 wdp.fix = not p.fit
 

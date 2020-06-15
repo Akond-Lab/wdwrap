@@ -154,26 +154,26 @@ class IBAND(IBANDbase):
     help_str = 'Band'
     min, max = 1, 95
     help_val = {
-        1: 'Stromgren u', 2: 'Stromgren v', 3: 'Stromgren b', 4: 'Stromgren y',
-        5: 'Johnson U', 6: 'Johnson B', 7: 'Johnson V',
-        8: 'Johnson R', 9: 'Johnson I', 10: 'Johnson J', 11: 'Johnson K', 12: 'Johnson L', 13: 'Johnson M', 14: 'Johnson N',
-        15: 'Cousins Rc', 16: 'Cousins Ic',
-        17: 'Bessel90 UX', 18: 'Bessel90 BX', 19: 'Bessel90 B', 20: 'Bessel90 V', 21: 'Bessel90 R', 22: 'Bessel90 I',
-        23: 'Tycho Bt', 24: 'Tycho Vt', 25: 'HIP', 26: 'KEP', 27: 'COROT SIS', 28: 'COROT EXO',
-        29: 'Geneva U', 30: 'Geneva B', 31: 'Geneva B1', 32: 'Geneva B2', 33: 'Geneva V', 34: 'Geneva V1', 35: 'Geneva G',
-        36: 'Vilnius U', 37: 'Vilnius P', 38: 'Vilnius X', 39: 'Vilnius Y', 40: 'Vilnius Z', 41: 'Vilnius V', 42: 'Vilnius S',
-        43: 'Milone iz', 44: 'Milone iJ', 45: 'Milone iH', 46: 'Milone iK',
-        47: 'YMS94 iz', 48: 'YMS94 iJ', 49: 'YMS94 iH', 50: 'YMS94 iK',
-        51: 'YMS94 iL', 52: 'YMS94 iL\'', 53: 'YMS94 iM', 54: 'YMS94 in', 55: 'YMS94 iN',
-        56: 'Solan DSS u\'', 57: 'Solan DSS g\'', 58: 'Solan DSS r\'', 59: 'Solan DSS i\'', 60: 'Solan DSS z\'',
-        61: 'HST STIS Lyα', 62: 'HST STIS Fclear', 63: 'HST STIS Fsrf2', 64: 'HST STIS Fqtz',
-        65: 'HST STIS C III', 66: 'HST STIS Mg II', 67: 'HST STIS Nclear', 68: 'HST STIS LNsrf2yα', 69: 'HST STIS Nqtz',
-        70: 'HST STIS cn182', 71: 'HST STIS cn270',
-        72: 'HST STIS Oclear', 73: 'HST STIS Oclear-lp', 74: 'HST STIS [O II]', 75: 'HST STIS [O III]',
-        76: '2MASS J', 77: '2MASS H', 78: '2MASS Ks', 79: 'SWASP', 80: 'MOST',
-        81: 'GAIA2006 G', 82: 'GAIA G', 83: 'GAIA GBP', 84: 'GAIA GRP', 85: 'GAIA GRVS',
-        86: 'Milone  230', 87: 'Milone  250', 88: 'Milone  270', 89: 'Milone  290', 90: 'Milone  310', 91: 'Milone  330',
-        92: 'Ca II triplet 858', 93: 'WIRE V+R', 94: 'LUT'
+        1: 'u (Stromgren)', 2: 'v (Stromgren)', 3: 'b (Stromgren)', 4: 'y (Stromgren)',
+        5: 'U (Johnson)', 6: 'B (Johnson)', 7: 'V (Johnson)',
+        8: 'R (Johnson)', 9: 'I (Johnson)', 10: 'J (Johnson)', 11: 'K (Johnson)', 12: 'L (Johnson)', 13: 'M (Johnson)', 14: 'N (Johnson)',
+        15: 'Rc (Cousins)', 16: 'Ic (Cousins)',
+        17: 'UX (Bessel90)', 18: 'BX (Bessel90)', 19: 'B (Bessel90)', 20: 'V (Bessel90)', 21: 'R (Bessel90)', 22: 'I (Bessel90)',
+        23: 'Bt (Tycho)', 24: 'Vt (Tycho)', 25: 'HIP', 26: 'KEP', 27: 'SIS COROT', 28: 'EXO COROT',
+        29: 'U (Geneva)', 30: 'B (Geneva)', 31: 'B1 (Geneva)', 32: 'B2 (Geneva)', 33: 'V (Geneva)', 34: 'V1 (Geneva)', 35: 'G (Geneva)',
+        36: 'U (Vilnius)', 37: 'P (Vilnius)', 38: 'X (Vilnius)', 39: 'Y (Vilnius)', 40: 'Z (Vilnius)', 41: 'V (Vilnius)', 42: 'S (Vilnius)',
+        43: 'iz (Milone)', 44: 'iJ (Milone)', 45: 'iH (Milone)', 46: 'iK (Milone)',
+        47: 'iz (YMS94)', 48: 'iJ (YMS94)', 49: 'iH (YMS94)', 50: 'iK (YMS94)',
+        51: 'iL (YMS94)', 52: 'iL\' (YMS94)', 53: 'iM (YMS94)', 54: 'in (YMS94)', 55: 'iN (YMS94)',
+        56: 'u\' (Solan DSS)', 57: 'g\' (Solan DSS)', 58: 'r\' (Solan DSS)', 59: 'i\' (Solan DSS)', 60: 'z\' (Solan DSS)',
+        61: 'Lyα (HST STIS)', 62: 'Fclear (HST STIS)', 63: 'Fsrf2 (HST STIS)', 64: 'Fqtz (HST STIS)',
+        65: 'C III (HST STIS)', 66: 'Mg II (HST STIS)', 67: 'Nclear (HST STIS)', 68: 'LNsrf2yα (HST STIS)', 69: 'Nqtz (HST STIS)',
+        70: 'cn182 (HST STIS)', 71: 'cn270 (HST STIS)',
+        72: 'Oclear (HST STIS)', 73: 'Oclear-lp (HST STIS)', 74: 'O II (HST STIS)', 75: 'O III (HST STIS)',
+        76: 'J (2MASS)', 77: 'H (2MASS)', 78: 'Ks (2MASS)', 79: 'SWASP', 80: 'MOST',
+        81: 'G (GAIA2006)', 82: 'G (GAIA)', 83: 'GBP (GAIA)', 84: 'GRP (GAIA)', 85: 'GRVS (GAIA)',
+        86: '230 (Milone)', 87: '250 (Milone)', 88: '270 (Milone)', 89: '290 (Milone)', 90: '310 (Milone)', 91: '330 (Milone)',
+        92: '858 Ca II triplet', 93: 'V+R (WIRE)', 94: 'LUT'
     }
     flags = ParFlag.outputspec | ParFlag.lc | ParFlag.curvedep
 
@@ -190,7 +190,7 @@ class AEXTINC(FloatParameter):
     so it has only one value and it is not band-dependent"""
     help_str = 'extinction'
     unit = u.mag
-    min = 0, 1e2
+    min, max = 0, 1e2
     fmt_lcin = FortranFormatter('f', 7, 4)
     flags = ParFlag.fittable | ParFlag.lc | ParFlag.dc
 
