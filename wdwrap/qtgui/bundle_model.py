@@ -1,14 +1,9 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
-import logging
 
-from PySide2.QtCore import QModelIndex
 from wdwrap.bundle import Bundle
 from wdwrap.qtgui.container import Container
 from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
-
-logging.getLogger().setLevel(logging.DEBUG)
-
 
 class BundleModel(ContainesTreeModel):
     def __init__(self, bundle: Bundle = None, parent=None):
@@ -25,14 +20,3 @@ class BundleModel(ContainesTreeModel):
         # d1 = Container('dupa1', None, self.bundle_qmodel)
         # d2 = Container('dupa2', None, d1)
         # d3 = Container('dupa3', None, d2)
-
-
-
-
-
-
-
-
-
-
-

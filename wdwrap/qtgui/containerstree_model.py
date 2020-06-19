@@ -2,7 +2,7 @@
 
 import logging
 import typing
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
 
 import PySide2
@@ -20,14 +20,13 @@ class ContainesTreeModel(QAbstractItemModel):
         self.columns = ColumnsPreset()
         self.build_qmodel()
 
-
     @abstractmethod
     def build_qmodel(self):
         pass
 
     def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
         idx = QModelIndex()
-        if not parent.isValid(): #  Top level
+        if not parent.isValid():  # Top level
             try:
                 idx = self.createIndex(row, column, self.display_root.children()[row])
             except IndexError:
@@ -43,7 +42,7 @@ class ContainesTreeModel(QAbstractItemModel):
         logging.debug(f'Index ({row},{column}) of {parent} is {idx}')
         return idx
 
-    def parent(self, index) -> PySide2.QtCore.QObject:
+    def parent(self, index) -> PySide2.QtCore.QObject: # noqa
         if not index.isValid():
             return QModelIndex()
 
@@ -54,8 +53,7 @@ class ContainesTreeModel(QAbstractItemModel):
         row = 0
         try:
             row = parent.parent().children().index(self)
-        except (AttributeError, ValueError) as e:  # parent is None or child not found
-            # raise e
+        except (AttributeError, ValueError):  # parent is None or child not found
             pass
         parent_idx = self.createIndex(row, 0, parent)
         logging.debug(f'Parent ({parent_idx.row()},{parent_idx.column()}) of {index} is {parent_idx}')
@@ -65,6 +63,7 @@ class ContainesTreeModel(QAbstractItemModel):
         if not parent.isValid():
             container: Container = self.display_root
         else:
+            # noinspection PyTypeChecker
             container: Container = parent.internalPointer()
         count = len(container.children())
         return count
@@ -81,9 +80,10 @@ class ContainesTreeModel(QAbstractItemModel):
 
     def setData(self, index: QModelIndex, value: typing.Any, role: int = ...) -> bool:
         container, colname = self.item_and_column(index)
-        change = container.set_data(colname, role, value)
-        if change:
+        changed = container.set_data(colname, role, value)
+        if changed:
             self.dataChanged.emit(index, index)
+        return changed
 
     def flags(self, index: PySide2.QtCore.QModelIndex) -> PySide2.QtCore.Qt.ItemFlags:
         container, colname = self.item_and_column(index)
@@ -142,7 +142,6 @@ class ColumnsPreset(object):
         """Returns name for given enabled column number"""
         idx = self.enabled_to_idx[no]
         return self.idx_to_name[idx]
-
 
     def __len__(self):
         return len(self.enabled_to_idx)

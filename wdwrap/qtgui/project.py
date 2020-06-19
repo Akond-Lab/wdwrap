@@ -4,7 +4,9 @@ import typing
 import PySide2
 from PySide2.QtCore import QObject
 from wdwrap.bundle import Bundle
+from wdwrap.jupyterui.curves import WdCurve
 from wdwrap.qtgui.bundle_model import BundleModel
+from wdwrap.qtgui.curves_model import CurvesModel
 
 
 class Project(QObject):
@@ -14,5 +16,5 @@ class Project(QObject):
 
         self.bundle = Bundle.default_binary()
         self.parameters_model = BundleModel(self.bundle)
-        # self.curves_model = CurvesModel(self.bundle)
+        self.curves_model = CurvesModel([WdCurve()])
 
