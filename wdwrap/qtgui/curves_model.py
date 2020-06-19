@@ -8,7 +8,7 @@ from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentC
 from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
-logging.getLogger().setLevel(logging.DEBUG)
+# logging.getLogger().setLevel(logging.DEBUG)
 
 class CurveContainer(PropertiesAccessContainer):
     pass
@@ -27,10 +27,11 @@ class CurvesModel(ContainesTreeModel):
 
     def build_qmodel(self):
         for n, l in enumerate(self.curves):
+            name = 'RV' if l.is_rv() else 'Light'
             try:
-                name = f'curve {n} {l.obs_values.filename}'
+                name += f' {n} {l.obs_values.filename}'
             except AttributeError:
-                name = f'curve {n}'
+                name += f' {n}'
             c = CurveContainer(name, l, self.display_root)
             ParentColumnContainer('plot', c)
             ParentColumnContainer('fit', c)

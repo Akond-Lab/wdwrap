@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
         # if self.tedaCommandLine.ignoreSettings:
         #     return
         settings = QSettings()
+        self.central_widget.restore_session(settings)
         # settings.beginGroup("WCS")
         # self.wcsSexAct.setChecked(bool(settings.value("sexagesimal", True)))
         # self.wcsGridAct.setChecked(bool(settings.value("grid", False)))
@@ -99,6 +100,7 @@ class MainWindow(QMainWindow):
         # if self.tedaCommandLine.ignoreSettings:
         #     return
         settings = QSettings()
+        self.central_widget.save_session(settings)
         # settings.beginGroup("WCS")
         # settings.setValue("sexagesimal", self.wcsSexAct.isChecked())
         # settings.setValue("grid", self.wcsGridAct.isChecked())
