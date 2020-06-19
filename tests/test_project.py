@@ -6,11 +6,11 @@ import unittest
 class ProjectTestCase(unittest.TestCase):
 
     def test_project_construction(self):
-        from wdwrap.ui import Project
+        from wdwrap.jupyterui import Project
         p = Project()
 
     def test_project_default_values(self):
-        from wdwrap.ui import Project
+        from wdwrap.jupyterui import Project
         p = Project()
         self.assertIsNotNone(p.light_curves[0].wdparams['IBAND'])
         self.assertIsNotNone(p.veloc_curves[0].wdparams['IBAND'])
@@ -18,7 +18,7 @@ class ProjectTestCase(unittest.TestCase):
         self.assertIsNotNone(p.parameters['YCL'])
 
     def test_project_bundle_rw(self):
-        from wdwrap.ui import Project
+        from wdwrap.jupyterui import Project
         p = Project()
         import wdwrap
         b1 = wdwrap.default_binary()
@@ -37,7 +37,7 @@ class ProjectTestCase(unittest.TestCase):
 
 
     def test_project_add_curve(self):
-        from wdwrap.ui import Project
+        from wdwrap.jupyterui import Project
         p = Project()
         n = len(p.light_curves)
         observed = False

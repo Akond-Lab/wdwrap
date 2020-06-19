@@ -11,3 +11,4 @@ bqplot
 ipyvuetify
 jupyter
 ipywidgets
+PySide2

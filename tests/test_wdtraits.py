@@ -6,7 +6,7 @@ import unittest
 class WdTraitsCase(unittest.TestCase):
 
     def test_WdParamTraitCollection(self):
-        from wdwrap.ui.wdtraits import WdParamTraitCollection
+        from wdwrap.jupyterui.wdtraits import WdParamTraitCollection
         from wdwrap.param import ParFlag
         c1 = WdParamTraitCollection(flags_any=ParFlag.lc)
         c2 = WdParamTraitCollection(flags_any=ParFlag.lc|ParFlag.curvedep)
@@ -15,7 +15,7 @@ class WdTraitsCase(unittest.TestCase):
         self.assertGreater(len(c2.params), len(c3.params))
 
     def test_TraitCollectionReadWrite(self):
-        from wdwrap.ui.wdtraits import WdParamTraitCollection
+        from wdwrap.jupyterui.wdtraits import WdParamTraitCollection
         from wdwrap.bundle import Bundle
         from wdwrap.param import ParFlag
         c = WdParamTraitCollection(flags_any=ParFlag.lc)

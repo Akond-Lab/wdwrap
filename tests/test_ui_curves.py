@@ -10,7 +10,7 @@ class TestUiCurves(unittest.TestCase):
         pass
 
     def test_curve_contruction(self):
-        from wdwrap.ui.curves import LightCurve, VelocCurve
+        from wdwrap.jupyterui.curves import LightCurve, VelocCurve
         lc = LightCurve()
         vc = VelocCurve()
         self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
@@ -22,19 +22,19 @@ class TestUiCurveLists(unittest.TestCase):
         pass
 
     def test_lc_headers_json(self):
-        from wdwrap.ui.curveslist import LcCurvesList
+        from wdwrap.jupyterui.curveslist import LcCurvesList
         lcs = LcCurvesList()
         lcs.add(band='V', file='qqwqwq.txt')
         self.assertEqual(len(lcs.headers_json()), len(lcs.columns()))
 
     def test_lc_items_json(self):
-        from wdwrap.ui.curveslist import LcCurvesList
+        from wdwrap.jupyterui.curveslist import LcCurvesList
         lcs = LcCurvesList()
         lcs.add(band='V', file='qqwqwq.txt')
         self.assertEqual(len(lcs.items_json()), 1)
 
     def test_rv_items_json(self):
-        from wdwrap.ui.curveslist import RvCurvesList
+        from wdwrap.jupyterui.curveslist import RvCurvesList
         lcs = RvCurvesList()
         lcs.add(file='qqwqwq.txt')
         self.assertEqual(len(lcs.items_json()), 1)
