@@ -65,7 +65,13 @@ class Bundle(ParameterSet):
         An access to `light` or `veloc` properties calculates data if needed"""
         from .runners import LcRunner
         r = LcRunner()
-        r.run(self)
+        ret = r.run(self)
+        light = ret.get('light', None)
+        veloc = ret.get('veloc', None)
+        if light is not None:
+            self.light = light
+        if veloc is not None:
+            self._veloc = veloc
 
     def run_compute(self):
         """Alias of `lc()`"""

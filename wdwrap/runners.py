@@ -12,7 +12,7 @@ class Runner(object):
     def __init__(self):
         super(Runner, self).__init__()
 
-class LcRunner(object):
+class LcRunner(Runner):
 
     def __init__(self):
         super(LcRunner, self).__init__()
@@ -28,27 +28,30 @@ class LcRunner(object):
             errors = re.search(r'error:\s*(.*)', errs)
             if errors:
                 raise RuntimeError('lc error: ' + errors.groups()[0])
-            self.collect(d, bundle)
-            # print (errs)
-            # print (d)
+        return self.collect(d)
+        # print (errs)
+        # print (d)
 
     def write_lcin(self, bundle, directory, filename='lcin.active'):
         w = Writer_lcin(filepath=os.path.join(directory, filename), bundle=bundle)
         w.write()
 
-    def collect(self, directory, bundle, files=None):
+    def collect(self, directory, files=None):
         if files is None:
-            files = ['light.dat', 'veloc.dat', 'spect.dat', 'relat.dat', 'image.dat']
+            files = ['light', 'veloc', 'spect', 'relat', 'image']
+        ret = {}
         for f in files:
             try:
-                self.collet_file(directory=directory, filename=f, bundle=bundle)
+                ret[f] = self.collet_file(directory=directory, filename=f+'.dat')
             except IOError:
                 pass
+        return ret
 
-    def collet_file(self, directory, filename, bundle):
+    def collet_file(self, directory, filename):
         filepath = os.path.join(directory, filename)
         if filename == 'light.dat':
-            bundle.light = Reader_light(filepath).df
+            return Reader_light(filepath).df
         elif filename == 'veloc.dat':
-            bundle.veloc = Reader_veloc(filepath).df
+            return Reader_veloc(filepath).df
+        return None
 

@@ -1,5 +1,6 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
-
+import functools
+import logging
 from collections import OrderedDict
 from typing import Union
 
@@ -7,6 +8,8 @@ import numpy as np
 import pandas as pd
 from traitlets import HasTraits, Bool, Int, Float, Instance, validate, Unicode
 from traittypes import DataFrame
+
+from scipy.interpolate import BSpline, CubicSpline
 
 from .wdtraits import WdParamTraitCollection
 from ..bundle import Bundle
@@ -86,19 +89,27 @@ class CurveResampler(CurveTransformer):
         else:
             return super().transform(df)
 
-#####################################################
+# ############ CURVES as single set of points ####################### #
 
 class CurveValues(HasTraits):
     df_version = Int()  # observe for transformed data change
     dataframe = Instance(pd.DataFrame, ())  # observe for original dataframe change
     plot = Bool()
+    approx_order = Int(default_value=0)
+    approx_method = Unicode(default_value='b-spline')
+    approx_periodic = Bool(default_value=True)
+    approx_indep_column = Unicode(default_value='ph')  # hjd
+    approx_dep_columns = {'mag', 'rv1', 'rv2'}
 
     def __init__(self, *args, df=None, **kwargs):
         super().__init__(*args, **kwargs)
         if df is not None:
             self.dataframe = df
+        self.observe(lambda change: self.approximators.cache_clear(),
+                     ['approx_order', 'approx_method', 'approx_periodic', 'approx_indep_column'])
 
     def invalidate(self):
+        self.approximators.cache_clear()
         self.df_version += 1
 
     @property
@@ -109,13 +120,31 @@ class CurveValues(HasTraits):
         self.invalidate()
         self.dataframe = df
 
+    @functools.lru_cache()
+    def approximators(self):
+        def nans(x):
+            if np.isscalar(x):
+                return np.nan
+            else:
+                return np.full_like(x, np.nan)
+        ret = {col: nans for col in self.approx_dep_columns}
+        if self.df is not None:
+            for c in self.approx_dep_columns & set(self.df.columns):
+                if self.approx_method == 'cubic-spline':
+                    kwargs = {}
+                    if self.approx_periodic:
+                        kwargs['extrapolate'] = 'periodic'
+                        ret[c] = CubicSpline(self.df[self.approx_indep_column], self.df[c], **kwargs)
+                else:
+                    logging.error(f'Unknown interpolation method "{self.approx_method}"')
+        return ret
+
     @property
     def n(self):
         return len(self.df)
 
     def empty(self):
         return self.n == 0
-
 
 class ConvertedValues(CurveValues):
     """Keeps additional 'original' dataframe which is converted somehow into
@@ -173,7 +202,7 @@ class ObserverdValues(ConvertedValues):
 class GeneratedValues(CurveValues):
     pass
 
-#####################################################
+# ############ CURVES as observed/generated pair ####################### #
 
 class Curve(HasTraits):
 
@@ -195,6 +224,9 @@ class WdCurve(Curve):
 
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
         self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
+
+    @classmethod
+    def is_rv(cls): return False
 
 
 class LightCurve(WdCurve):

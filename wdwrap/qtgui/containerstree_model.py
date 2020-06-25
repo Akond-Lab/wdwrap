@@ -24,6 +24,27 @@ class ContainesTreeModel(QAbstractItemModel):
     def build_qmodel(self):
         pass
 
+    # children access
+    def children_iter_filter(self, child: Container, **kwargs) -> bool:
+        return True
+
+    def children_iter(self, depth: typing.Optional[int] = -1, root: Container = None, **kwargs):
+        """Iterates down the children tree up to depth
+
+        depth == 0 : just children of the root
+        depth < 0 : all the sub-children
+        depth > 0 : limit to specified depth"""
+        if root is None:
+            root = self
+        for child in root.children():
+            if self.children_iter_filter(**kwargs):
+                yield child
+            if depth != 0:
+                yield from self.children_iter(depth=depth - 1, root=child, **kwargs)
+
+
+    # overridden QAbstractItemModel
+
     def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
         idx = QModelIndex()
         if not parent.isValid():  # Top level

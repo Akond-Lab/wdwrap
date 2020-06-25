@@ -1,6 +1,6 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
-from PySide2.QtCore import QObject, Property
+from PySide2.QtCore import QObject, Property, Signal
 from PySide2.QtCore import Qt
 
 
