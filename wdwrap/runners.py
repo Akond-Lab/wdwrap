@@ -18,6 +18,9 @@ class LcRunner(Runner):
         super(LcRunner, self).__init__()
         self.executable = cfg().get('executables', 'lc')
 
+    def __call__(self, bundle):
+        return self.run(bundle=bundle)
+
     def run(self, bundle):
         with WdTempDir(bundle.wdversion, delete_on_exit=False) as d:
             self.write_lcin(bundle, d)
@@ -28,7 +31,8 @@ class LcRunner(Runner):
             errors = re.search(r'error:\s*(.*)', errs)
             if errors:
                 raise RuntimeError('lc error: ' + errors.groups()[0])
-        return self.collect(d)
+        ret = self.collect(d)
+        return ret
         # print (errs)
         # print (d)
 

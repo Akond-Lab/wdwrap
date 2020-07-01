@@ -1,8 +1,10 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import functools
 import logging
+import math
 from collections import OrderedDict
-from typing import Union
+from enum import Enum
+from typing import Union, Optional, List
 
 import numpy as np
 import pandas as pd
@@ -10,10 +12,13 @@ from traitlets import HasTraits, Bool, Int, Float, Instance, validate, Unicode
 from traittypes import DataFrame
 
 from scipy.interpolate import BSpline, CubicSpline
+from dask.distributed import Future
 
 from .wdtraits import WdParamTraitCollection
 from ..bundle import Bundle
+from ..jobs import JobScheduler
 from ..param import ParFlag
+from ..drivers import MPAGE
 from ..parameters import ParameterSet
 
 """
@@ -200,7 +205,150 @@ class ObserverdValues(ConvertedValues):
         return self.transformers['resampler']
 
 class GeneratedValues(CurveValues):
-    pass
+    class STATUS:
+        Canceling = 3
+        Invalid  = 2
+        Calculating = 1
+        Ready = 0
+
+    status = Int(default_value=STATUS.Invalid)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def generate(self):
+        pass
+
+
+
+class WdGeneratedValues(GeneratedValues):
+    segment_dividers_version = Int()
+
+    def __init__(self, *args, bundle: Bundle, rv: bool, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_rv = rv
+        self.bundle = bundle
+        self.parameters = ParameterSet()
+        self.segment_dividers = [0.0, 0.5, 1.0]
+        self.segment_data = [{'PHIN': bundle['PHIN']}, {'PHIN': bundle['PHIN']}]
+        self.futures: List[Future] = []
+
+    def generate(self):
+        self.cancel()
+        bundle = self.bundle.copy()
+        bundle.update(self.parameters)
+        bundle['MPAGE'] = MPAGE.VELOC if self.is_rv else MPAGE.LIGHT
+        for s in range(self.segments_count()):
+            b = bundle.copy()
+            lo, hi = self.segment_range(s)
+            b['PHSTRT'] = lo
+            b['PHSTOP'] = hi
+            b['PHIN'] = self.segment_data[s]['PHIN']
+            f = JobScheduler.instance.schedule('lc', b)
+            f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
+            self.futures.append(f)
+        self.status = self.STATUS.Calculating
+
+    def on_segment_calculated(self, fut):
+        for f in self.futures:
+            if not f.done():
+                return
+        results = [f.result().get('veloc' if self.is_rv else 'light', None) for f in self.futures]
+        results = [r for r in results if r is not None]
+        df = pd.concat(results)
+        self.set_df(df)
+
+    def set_df(self, df):
+        super().set_df(df)
+        self.status = self.STATUS.Ready
+
+    def cancel(self):
+        self.status = self.STATUS.Canceling
+        for f in self.futures:
+            f.cancel()
+        self.futures = []
+
+    def wait(self):
+        ready = False
+        while not ready:
+            fw = None
+            for f in self.futures:
+                if not f.done():
+                    fw = f
+                    break
+            if fw is None:
+                ready = True
+            else:
+                fw.result()
+
+    def segments_count(self) -> int:
+        return len(self.segment_data)
+
+    def segment_split_at(self, divider: float) -> int:
+        seg = self.segment_at(divider)
+        self.segment_split(seg, divider)
+        return seg
+
+    def segment_at(self, pos: float) -> int:
+        for s in range(self.segments_count()):
+            if self.segment_dividers[s+1] > pos:
+                return s
+        if math.isclose(pos, 1.0):
+            return self.segments_count() - 1
+        else:
+            raise ValueError('pos should be <= 1.0')
+
+    def segment_split(self, segment: int, divider: Optional[float] = None) -> float:
+        import copy
+        lo, hi = self.segment_range(segment)
+        if divider is None:
+            if math.isclose(lo, hi):
+                divider = lo
+            else:
+                divider = lo + (hi - lo) / 2.
+        data = copy.copy(self.segment_data[segment])
+        self.segment_dividers.insert(segment+1, divider)
+        self.segment_data.insert(segment+1, data)
+        self.segment_dividers_version += 1
+        return divider
+
+    def segment_delete(self, segment: int, update_version=True):
+        del self.segment_data[segment]
+        del self.segment_dividers[max(segment, 1)]  # delete left boundary if not first
+        self.segment_dividers_version += 1
+
+    def segment_delete_empty(self):
+        raise NotImplementedError()
+
+    def segment_range(self, segment: int) -> (float, float):
+        return self.segment_dividers[segment], self.segment_dividers[segment+1]
+
+    def segment_set_range(self, segment: int, from_value: Optional[float] = None, to_value: Optional[float] = None):
+        modified = False
+        if from_value is not None and segment > 0 and not math.isclose(self.segment_dividers[segment], from_value):
+            self.segment_dividers[segment] = from_value
+            modified = True
+            for s in range(segment - 1, 0, -1):
+                if self.segment_dividers[s] > from_value:
+                    self.segment_dividers[s] = from_value
+                else:
+                    break
+        if to_value is not None and segment < len(self.segment_dividers) - 2 and not math.isclose(
+                self.segment_dividers[segment+1], to_value):
+            self.segment_dividers[segment+1] = to_value
+            modified = True
+            for s in range(segment + 2, len(self.segment_dividers) - 1):
+                if self.segment_dividers[s] < to_value:
+                    self.segment_dividers[s] = to_value
+                else:
+                    break
+        if modified:
+            self.segment_dividers_version += 1
+
+    def segment_is_empty(self, segment: int) -> bool:
+        lo, hi = self.segment_range(segment)
+        return math.isclose(lo, hi)
+
 
 # ############ CURVES as observed/generated pair ####################### #
 

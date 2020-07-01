@@ -21,6 +21,13 @@ class Bundle(ParameterSet):
         self._light = None
         self._veloc = None
 
+    def copy(self):
+        ret = super().copy()
+        ret.wdversion = self.wdversion
+        ret._light = self._light
+        ret._veloc = self._veloc
+        return ret
+
 
     @classmethod
     def default_binary(cls, default_file=None, bundleno=0):
@@ -65,13 +72,7 @@ class Bundle(ParameterSet):
         An access to `light` or `veloc` properties calculates data if needed"""
         from .runners import LcRunner
         r = LcRunner()
-        ret = r.run(self)
-        light = ret.get('light', None)
-        veloc = ret.get('veloc', None)
-        if light is not None:
-            self.light = light
-        if veloc is not None:
-            self._veloc = veloc
+        return r.run(self)
 
     def run_compute(self):
         """Alias of `lc()`"""
@@ -88,7 +89,8 @@ class Bundle(ParameterSet):
         """Calculated (by LC) light curve pandas DataFrame"""
         if self._light is None:
             self['MPAGE'] = MPAGE.LIGHT
-            self.lc()
+            ret = self.lc()
+            self._light = ret['light']
         return self._light
 
     @light.setter
@@ -100,7 +102,8 @@ class Bundle(ParameterSet):
         """Calculated (by LC) radial velocity curve, returns pandas DataFrame"""
         if self._veloc is None:
             self['MPAGE'] = MPAGE.VELOC
-            self.lc()
+            ret = self.lc()
+            self._veloc = ret['veloc']
         return self._veloc
 
     @veloc.setter
