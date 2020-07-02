@@ -2,6 +2,7 @@
 import functools
 import logging
 import math
+import threading
 from collections import OrderedDict
 from enum import Enum
 from typing import Union, Optional, List
@@ -101,48 +102,63 @@ class CurveValues(HasTraits):
     dataframe = Instance(pd.DataFrame, ())  # observe for original dataframe change
     plot = Bool()
     approx_order = Int(default_value=0)
-    approx_method = Unicode(default_value='b-spline')
+    approx_method = Unicode(default_value='cubic-spline')
     approx_periodic = Bool(default_value=True)
-    approx_indep_column = Unicode(default_value='ph')  # hjd
-    approx_dep_columns = {'mag', 'rv1', 'rv2'}
+    indep_column = Unicode(default_value='ph')  # hjd
+    dep_columns = {'mag', 'rv1', 'rv2'}
 
     def __init__(self, *args, df=None, **kwargs):
         super().__init__(*args, **kwargs)
         if df is not None:
             self.dataframe = df
-        self.observe(lambda change: self.approximators.cache_clear(),
-                     ['approx_order', 'approx_method', 'approx_periodic', 'approx_indep_column'])
+        self.observe(lambda change: self.get_approximators.invalidate_caches(),
+                     ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
 
-    def invalidate(self):
-        self.approximators.cache_clear()
-        self.df_version += 1
+    def invalidate_caches(self):
+        self.get_approximators.cache_clear()
+        # self.get_values_at.cache_clear()
 
     @property
     def df(self):
         return self.dataframe
 
     def set_df(self, df):
-        self.invalidate()
+        self.invalidate_caches()
         self.dataframe = df
 
     @functools.lru_cache()
-    def approximators(self):
+    def get_approximators(self):
         def nans(x):
             if np.isscalar(x):
                 return np.nan
             else:
                 return np.full_like(x, np.nan)
-        ret = {col: nans for col in self.approx_dep_columns}
+        ret = {col: nans for col in self.dep_columns if col in self.df.columns}
         if self.df is not None:
-            for c in self.approx_dep_columns & set(self.df.columns):
+            for c in self.dep_columns & set(self.df.columns):
                 if self.approx_method == 'cubic-spline':
                     kwargs = {}
                     if self.approx_periodic:
                         kwargs['extrapolate'] = 'periodic'
-                        ret[c] = CubicSpline(self.df[self.approx_indep_column], self.df[c], **kwargs)
+                        ret[c] = CubicSpline(self.df[self.indep_column], self.df[c], **kwargs)
                 else:
                     logging.error(f'Unknown interpolation method "{self.approx_method}"')
         return ret
+
+    # @functools.lru_cache()
+    def get_values_at(self, indep_var_values=None):
+        """Curve values at specified points
+
+        Uses approximation, returns DataFrame.
+        If indep_var_values is None, returns values without approximation"""
+        if indep_var_values is None:
+            return self.df
+
+        approx = self.get_approximators()
+        df = pd.DataFrame(indep_var_values, columns=[self.indep_column])
+        for col, a in approx.items():
+            df[col] = a(indep_var_values)
+        return df
 
     @property
     def n(self):
@@ -169,16 +185,16 @@ class ConvertedValues(CurveValues):
             t.observe(lambda change: self.on_transformer_changed(change))
 
     def on_transformer_changed(self, change):
-        self.invalidate()
+        self.invalidate_caches()
 
     def transform(self, df):
         for trans in self.transformers.values():
             df = trans.transform(df)
         return df
 
-    def invalidate(self):
+    def invalidate_caches(self):
         self.cached_df = None
-        super().invalidate()
+        super().invalidate_caches()
 
     @property
     def df(self):
@@ -207,7 +223,7 @@ class ObserverdValues(ConvertedValues):
 class GeneratedValues(CurveValues):
     class STATUS:
         Canceling = 3
-        Invalid  = 2
+        Invalid = 2
         Calculating = 1
         Ready = 0
 
@@ -216,7 +232,21 @@ class GeneratedValues(CurveValues):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def generate(self):
+    def generate(self, wait=False):
+        pass
+
+    def refresh(self, wait=False):
+        """Generate if needed"""
+        if self.status == self.STATUS.Invalid:
+            self.generate(wait=wait)
+
+    def invalidate(self):
+        if self.status == self.STATUS.Calculating: # cancel and re-generate
+            self.generate()
+        else:
+            self.status = self.STATUS.Invalid
+
+    def cancel(self):
         pass
 
 
@@ -226,18 +256,20 @@ class WdGeneratedValues(GeneratedValues):
 
     def __init__(self, *args, bundle: Bundle, rv: bool, **kwargs):
         super().__init__(*args, **kwargs)
+        self.calculation_semaphore = threading.Semaphore()
         self.is_rv = rv
         self.bundle = bundle
         self.parameters = ParameterSet()
         self.segment_dividers = [0.0, 0.5, 1.0]
-        self.segment_data = [{'PHIN': bundle['PHIN']}, {'PHIN': bundle['PHIN']}]
+        self.segment_data = [{'PHIN': bundle['PHIN'].val}, {'PHIN': bundle['PHIN'].val}]
         self.futures: List[Future] = []
 
-    def generate(self):
+    def generate(self, wait=False):
         self.cancel()
         bundle = self.bundle.copy()
         bundle.update(self.parameters)
         bundle['MPAGE'] = MPAGE.VELOC if self.is_rv else MPAGE.LIGHT
+        running = False
         for s in range(self.segments_count()):
             b = bundle.copy()
             lo, hi = self.segment_range(s)
@@ -246,17 +278,44 @@ class WdGeneratedValues(GeneratedValues):
             b['PHIN'] = self.segment_data[s]['PHIN']
             f = JobScheduler.instance.schedule('lc', b)
             f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
+            running = True
+            logging.warning(f'Future scheduled: {f}')
             self.futures.append(f)
-        self.status = self.STATUS.Calculating
+        if running:
+            self.status = self.STATUS.Calculating
+            self.calculation_semaphore.acquire()
+        if wait:
+            self.wait()
+
+    def wait(self, timeout=None) -> bool:
+        if self.calculation_semaphore.acquire(timeout=timeout):
+            self.calculation_semaphore.release()
+            return True
+        else: #  timeout
+            return False
+
 
     def on_segment_calculated(self, fut):
+        logging.warning(f'Future done: {fut}')
         for f in self.futures:
             if not f.done():
                 return
-        results = [f.result().get('veloc' if self.is_rv else 'light', None) for f in self.futures]
-        results = [r for r in results if r is not None]
+        logging.warning(f'Futures all done, collecting')
+        results = []
+        for f in self.futures:
+            result = f.result()
+            df = result.get('veloc' if self.is_rv else 'light', None)
+            if df is not None:
+                results.append(df)
+
+        # results = [f.result().get('veloc' if self.is_rv else 'light', None) for f in self.futures]
+        # results = [r for r in results if r is not None]
         df = pd.concat(results)
+        df = df[~df.duplicated([self.indep_column])]
+        df.sort_values(self.indep_column)
+        df.reindex()
         self.set_df(df)
+        self.calculation_semaphore.release()
 
     def set_df(self, df):
         super().set_df(df)
@@ -267,19 +326,6 @@ class WdGeneratedValues(GeneratedValues):
         for f in self.futures:
             f.cancel()
         self.futures = []
-
-    def wait(self):
-        ready = False
-        while not ready:
-            fw = None
-            for f in self.futures:
-                if not f.done():
-                    fw = f
-                    break
-            if fw is None:
-                ready = True
-            else:
-                fw.result()
 
     def segments_count(self) -> int:
         return len(self.segment_data)
@@ -359,6 +405,22 @@ class Curve(HasTraits):
         self.gen_values = GeneratedValues()
         self.obs_values = ObserverdValues()
 
+    def get_points_generated(self, calc_at=None, generate=True):
+        pass
+
+    def get_points_generated_async(self, calc_at=None):
+        pass
+
+    def get_generated_interpolator(self, generate=True):
+        pass
+
+    def get_points_observed(self):
+        pass
+
+    def get_points_residuals(self):
+        pass
+
+
 class WdCurve(Curve):
     wdparams = Instance(WdParamTraitCollection,
                         kw={'flags_any': ParFlag.curvedep})
@@ -367,8 +429,11 @@ class WdCurve(Curve):
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
-        if bundle is not None:
-            self.read_bundle(bundle)
+        if bundle is None:
+            bundle = Bundle.default_binary()
+        self.gen_values = WdGeneratedValues(bundle=bundle, rv=self.is_rv())
+
+        self.read_bundle(bundle)
 
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
         self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)

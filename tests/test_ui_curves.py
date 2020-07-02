@@ -16,6 +16,29 @@ class TestUiCurves(unittest.TestCase):
         self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
         self.assertRaises(LookupError, lambda: lc.wdparams.param_dict['XLAT'])
 
+    def test_curve_generation(self):
+        from wdwrap.jupyterui.curves import LightCurve
+        from wdwrap.bundle import Bundle
+        bundle = Bundle.default_binary()
+        lc = LightCurve(bundle=bundle)
+        lc.gen_values.generate(wait=True)
+        values = lc.gen_values.get_values_at()
+        print(values)
+        self.assertGreater(len(values), 10)
+
+    def test_curve_generation_at_points(self):
+        from wdwrap.jupyterui.curves import LightCurve
+        from wdwrap.bundle import Bundle
+        bundle = Bundle.default_binary()
+        lc = LightCurve(bundle=bundle)
+        lc.gen_values.generate(wait=True)
+        at = [0.0, 0.2, 0.4, 0.9]
+        values = lc.gen_values.get_values_at(at)
+        print(values)
+        self.assertEqual(len(values), len(at))
+
+
+
 class TestUiCurveLists(unittest.TestCase):
 
     def setUp(self):

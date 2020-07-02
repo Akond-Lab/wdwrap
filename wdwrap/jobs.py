@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Callable, Mapping, Optional
 
-from dask.distributed import Client
+from dask.distributed import Client, Future
 from wdwrap.runners import LcRunner
 
 class JobScheduler(object):
@@ -22,7 +22,7 @@ class JobScheduler(object):
             client = Client()
         self.client = client
 
-    def schedule(self, job_kind, *args):
+    def schedule(self, job_kind, *args) -> Future:
         ex = self.get_job_executor(job_kind)
         return self.client.submit(ex, *args)
 
