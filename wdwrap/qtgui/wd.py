@@ -7,6 +7,7 @@ from sys import stderr
 from PySide2.QtCore import QCommandLineParser, QCoreApplication
 from PySide2.QtWidgets import QApplication
 
+from wdwrap.qtgui.commandline import CommandLineSettings, CommandLineParseResult
 from wdwrap.qtgui.mainwindow import MainWindow
 from wdwrap.version import __version__
 
@@ -20,19 +21,18 @@ def main():
     QApplication.setApplicationName('WD Wrapper')
     QApplication.setApplicationVersion(__version__)
 
-    # tcl = TedaCommandLine()
-    # parser = QCommandLineParser()
-    #
-    # result = tcl.parseCommandLine(parser)
-    # if result.result == CommandLineParseResult.CommandLineError :
-    #     print(result.errorMessage, "\n\n", parser.helpText(), file=sys.stderr)
-    #     return 1
-    # elif result.result == CommandLineParseResult.CommandLineVersionRequested :
-    #     print(QCoreApplication.applicationName(), QCoreApplication.applicationVersion(), "\n")
-    #     return 0
-    # elif result.result == CommandLineParseResult.CommandLineHelpRequested :
-    #     parser.showHelp()
-    #     return 0
+    tcl = CommandLineSettings()
+    parser = QCommandLineParser()
+    result = tcl.parseCommandLine(parser)
+    if result.result == CommandLineParseResult.CommandLineError :
+        print(result.errorMessage, "\n\n", parser.helpText(), file=sys.stderr)
+        return 1
+    elif result.result == CommandLineParseResult.CommandLineVersionRequested :
+        print(QCoreApplication.applicationName(), QCoreApplication.applicationVersion(), "\n")
+        return 0
+    elif result.result == CommandLineParseResult.CommandLineHelpRequested :
+        parser.showHelp()
+        return 0
 
 
     mainWin = MainWindow()

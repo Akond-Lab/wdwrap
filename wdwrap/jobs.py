@@ -1,17 +1,18 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 from __future__ import annotations
 from typing import Callable, Mapping, Optional
+import logging
 
 from dask.distributed import Client, Future
 from wdwrap.runners import LcRunner
 
 class JobScheduler(object):
-    instance: Optional[JobScheduler] = None
+    _instance: Optional[JobScheduler] = None
 
     def __init__(self,
                  executors: Optional[Mapping[str, Callable]] = None,
                  client: Optional[Client] = None) -> None:
-        if self.instance is not None:
+        if self._instance is not None:
             raise RuntimeError(
                 'Do instance JobScheduler directly, use JobScheduler.instance to obtain singleton instance')
         super().__init__()
@@ -19,6 +20,7 @@ class JobScheduler(object):
             executors = {}
         self.executors = executors
         if client is None:
+            logging.info('Setting up multiprocess dash client')
             client = Client()
         self.client = client
 
@@ -29,5 +31,10 @@ class JobScheduler(object):
     def get_job_executor(self, job_kind) -> Callable:
         return self.executors.get(job_kind, None)
 
-
-JobScheduler.instance = JobScheduler({'lc': LcRunner()})
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = JobScheduler({
+                'lc': LcRunner(),
+            })
+        return cls._instance

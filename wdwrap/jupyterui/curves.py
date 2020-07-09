@@ -5,6 +5,7 @@ import math
 import threading
 from collections import OrderedDict
 from enum import Enum
+import random
 from typing import Union, Optional, List
 
 import numpy as np
@@ -111,6 +112,8 @@ class CurveValues(HasTraits):
         super().__init__(*args, **kwargs)
         if df is not None:
             self.dataframe = df
+        else:
+            self.dataframe = pd.DataFrame(columns=[self.indep_column, *self.dep_columns])
         self.observe(lambda change: self.get_approximators.invalidate_caches(),
                      ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
 
@@ -276,7 +279,7 @@ class WdGeneratedValues(GeneratedValues):
             b['PHSTRT'] = lo
             b['PHSTOP'] = hi
             b['PHIN'] = self.segment_data[s]['PHIN']
-            f = JobScheduler.instance.schedule('lc', b)
+            f = JobScheduler.instance().schedule('lc', b)
             f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
             running = True
             logging.warning(f'Future scheduled: {f}')
@@ -405,20 +408,20 @@ class Curve(HasTraits):
         self.gen_values = GeneratedValues()
         self.obs_values = ObserverdValues()
 
-    def get_points_generated(self, calc_at=None, generate=True):
-        pass
-
-    def get_points_generated_async(self, calc_at=None):
-        pass
-
-    def get_generated_interpolator(self, generate=True):
-        pass
-
-    def get_points_observed(self):
-        pass
-
-    def get_points_residuals(self):
-        pass
+    # def get_points_generated(self, calc_at=None, generate=True):
+    #     pass
+    #
+    # def get_points_generated_async(self, calc_at=None):
+    #     pass
+    #
+    # def get_generated_interpolator(self, generate=True):
+    #     pass
+    #
+    # def get_points_observed(self):
+    #     pass
+    #
+    # def get_points_residuals(self):
+    #     pass
 
 
 class WdCurve(Curve):
@@ -426,9 +429,11 @@ class WdCurve(Curve):
                         kw={'flags_any': ParFlag.curvedep})
     plot = Bool(default_value=True)
     fit = Bool(default_value=False)
+    color = Unicode('red')
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.color = f'#{random.randint(0, 0xffffff):06x}44'
         if bundle is None:
             bundle = Bundle.default_binary()
         self.gen_values = WdGeneratedValues(bundle=bundle, rv=self.is_rv())

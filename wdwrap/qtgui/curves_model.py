@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from PySide2.QtCore import Signal, Property
 from wdwrap.bundle import Bundle
-from wdwrap.jupyterui.curves import WdCurve
+from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
@@ -45,17 +45,22 @@ class CurveValuesContainer(PropertiesAccessContainer):
         return self.parent().plot
 
     plot = Property(bool, get_plot)
+    sig_curve_changed = Signal(Container)
+
 
 class CurveObservedContainer(CurveValuesContainer):
-    sig_curve_changed = Signal()
     pass
 
 class CurveGeneratedContainer(CurveValuesContainer):
 
     def __init__(self, name, data, parent=None):
         super().__init__(name, data, parent)
+        data.observe(lambda change: self.on_curve_status_change(change), 'status')
 
-    sig_curve_changed = Signal()
+    def on_curve_status_change(self, change):
+        if change.new == GeneratedValues.STATUS.Ready:
+            logging.info(f'Curve {self.content} ready - emitting signal')
+            self.sig_curve_changed.emit(self)
 
 
 class CurvesModel(ContainesTreeModel):
@@ -65,13 +70,14 @@ class CurvesModel(ContainesTreeModel):
         self.columns = ColumnsPreset(['name', 'data'])
 
     def children_iter_filter(self, child: Container, **kwargs) -> bool:
-        if kwargs.get('curves'):
-            return isinstance(child, CurveValuesContainer)
-        else:
-            return super().children_iter_filter(child, **kwargs)
+        if kwargs.get('curves', False) and not isinstance(child, CurveContainer):
+            return False
+        if kwargs.get('curvevaluess', False) and not isinstance(child, CurveValuesContainer):
+            return False
+        return super().children_iter_filter(child, **kwargs)
 
     def curves_iter(self):
-        yield from self.children_iter(depth=1, curves=True)
+        yield from self.children_iter(depth=0, curves=True)
 
     def build_qmodel(self):
         for n, l in enumerate(self.curves):

@@ -13,7 +13,7 @@ class TestJobScheduling(unittest.TestCase):
     def test_lc_scheduling(self):
         import wdwrap
         from wdwrap.jobs import JobScheduler
-        ret = JobScheduler.instance.schedule('lc', wdwrap.default_binary())
+        ret = JobScheduler.instance().schedule('lc', wdwrap.default_binary())
         r = ret.result()
         print(r)
 

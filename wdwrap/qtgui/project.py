@@ -16,5 +16,8 @@ class Project(QObject):
 
         self.bundle = Bundle.default_binary()
         self.parameters_model = BundleModel(self.bundle)
-        self.curves_model = CurvesModel([LightCurve(), VelocCurve()])
+        self.curves_model = CurvesModel([
+            LightCurve(bundle=self.bundle),
+            VelocCurve(bundle=self.bundle)
+        ])
 

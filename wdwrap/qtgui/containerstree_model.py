@@ -35,9 +35,9 @@ class ContainesTreeModel(QAbstractItemModel):
         depth < 0 : all the sub-children
         depth > 0 : limit to specified depth"""
         if root is None:
-            root = self
+            root = self.display_root
         for child in root.children():
-            if self.children_iter_filter(**kwargs):
+            if self.children_iter_filter(child, **kwargs):
                 yield child
             if depth != 0:
                 yield from self.children_iter(depth=depth - 1, root=child, **kwargs)
