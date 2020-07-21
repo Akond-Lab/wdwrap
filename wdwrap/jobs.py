@@ -24,9 +24,9 @@ class JobScheduler(object):
             client = Client()
         self.client = client
 
-    def schedule(self, job_kind, *args) -> Future:
+    def schedule(self, job_kind, *args, **kwargs) -> Future:
         ex = self.get_job_executor(job_kind)
-        return self.client.submit(ex, *args)
+        return self.client.submit(ex, *args, **kwargs)
 
     def get_job_executor(self, job_kind) -> Callable:
         return self.executors.get(job_kind, None)

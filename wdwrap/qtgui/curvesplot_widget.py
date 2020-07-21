@@ -7,6 +7,7 @@ import numpy as np
 from PySide2.QtCore import Slot, Qt, QSize
 from PySide2.QtWidgets import QToolBar
 from matplotlib.artist import Artist
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -51,7 +52,20 @@ class CurvesPlotWidget(FigureCanvas):
         self.logger.info(f'On curve change  {curve_values_container.content}: adjusting')
         self.update_curve(curve_values_container)
 
+    @Slot(CurveValuesContainer)
+    def on_curve_invalidated(self, curve_values_container):
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            self.invalidate_curve(curve_values_container)
+            curve: WdCurve = curve_container.content
+            curve.gen_values.refresh()
+            self.logger.info('Forced curve {curve_values_container} refresh')
+
+
     def update_curve(self, curve_values_container: CurveValuesContainer):
+        pass
+
+    def invalidate_curve(self, curve_values_container: CurveValuesContainer):
         pass
 
     def plot_curve(self, curve_container: CurveContainer):
@@ -61,6 +75,7 @@ class CurvesPlotWidget(FigureCanvas):
             o: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'observed')
 
             g.sig_curve_changed.connect(self.on_curve_changed)
+            g.sig_curve_invalidated.connect(self.on_curve_invalidated)
             o.sig_curve_changed.connect(self.on_curve_changed)
             curve = curve_container.content
             curve.gen_values.refresh()
@@ -71,10 +86,8 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.curves_model = model
         super().__init__()
         gs = self.figure.add_gridspec(3, 1)
-        self.ax = self.figure.add_subplot(gs[0:2, 0])
-        self.ax.invert_yaxis()
+        self.ax: Axes = self.figure.add_subplot(gs[0:2, 0])
         self.ax_resid = self.figure.add_subplot(gs[2, 0], sharex=self.ax)
-        self.ax_resid.invert_yaxis()
         self.figure.subplots_adjust(hspace=0.000)
         self.plot_curves()
 
@@ -91,9 +104,27 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         #     if self.curves_filter(curve, **kwargs):
         #         yield curve
 
+    def plot_curves(self):
+        self.ax_resid.axhline(0.0, color='gray', lw=1)
+        span_alpha = 0.1
+        self.ax.axvspan(-100.0, 0.0, alpha=span_alpha, in_layout=False)
+        self.ax.axvspan(1.0, 100.0, alpha=span_alpha, in_layout=False)
+        self.ax_resid.axvspan(-100.0, 0.0, alpha=span_alpha, in_layout=False)
+        self.ax_resid.axvspan(1.0, 100.0, alpha=span_alpha, in_layout=False)
+        super().plot_curves()
+
+    def redraw_idle(self):
+        self.ax.relim()
+        self.ax.autoscale()
+        self.ax.set_xlim(-0.1, 1.1, auto=False)
+        self.draw_idle()
+
+
 class LightPlotWidget(WdCurvesPlotWidget):
     def __init__(self, model: CurvesModel):
         super().__init__(model)
+        self.ax.invert_yaxis()
+        self.ax_resid.invert_yaxis()
 
     def curves_filter(self, curve, **kwargs):
         return not curve.content.is_rv() and super().curves_filter(curve, **kwargs)
@@ -101,6 +132,16 @@ class LightPlotWidget(WdCurvesPlotWidget):
     # def connect_curves(self):
     #     for c in
     #             curve.observe(lambda change: self.on_curve_changed(change))
+
+    def invalidate_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            artists = self.curves_artists[curve_container]
+            line: Line2D = artists['gen']
+            line.set_xdata([])
+            line.set_ydata([])
+            self.redraw_idle()
 
     def update_curve(self, curve_values_container: CurveValuesContainer):
         super().update_curve(curve_values_container)
@@ -119,10 +160,7 @@ class LightPlotWidget(WdCurvesPlotWidget):
             line.set_xdata(x)
             line.set_ydata(y)
 
-            self.ax.relim()
-            self.ax.autoscale()
-
-            self.draw_idle()
+            self.redraw_idle()
 
     def plot_curve(self, curve_container: CurveContainer):
         ret = {}
@@ -146,3 +184,57 @@ class LightPlotWidget(WdCurvesPlotWidget):
 class RvPlotWidget(WdCurvesPlotWidget):
     def curves_filter(self, curve, **kwargs):
         return curve.content.is_rv() and super().curves_filter(curve, **kwargs)
+
+    def invalidate_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            artists = self.curves_artists[curve_container]
+            for rv in ['rv1', 'rv2']:
+                line: Line2D = artists['gen_'+rv]
+                line.set_xdata([])
+                line.set_ydata([])
+            self.redraw_idle()
+
+    def update_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            generated: WdGeneratedValues = curve.gen_values
+            gen_df = generated.get_values_at()
+            artists = self.curves_artists[curve_container]
+            x = np.linspace(-0.1, 1.1, 600)
+            y = generated.get_values_at(x % 1.0)
+            for rv in ['rv1', 'rv2']:
+                line: Line2D = artists['gen_'+rv]
+                line.set_xdata(gen_df['ph'])
+                line.set_ydata(gen_df[rv])
+                line: Line2D = artists['gen_approx_'+rv]
+                line.set_xdata(x)
+                line.set_ydata(y[rv])
+            self.redraw_idle()
+
+    def plot_curve(self, curve_container: CurveContainer):
+        ret = {}
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            gen = curve.gen_values
+            gen_df = gen.get_values_at()
+            for rv, color in [('rv1', 'red'), ('rv2', 'blue')]:
+                ret['gen_approx_'+rv] = self.ax.plot(
+                    gen_df['ph'], gen_df[rv],
+                    '-', color=color, alpha=0.4,
+                )[0]
+                ret['gen_'+rv] = self.ax.plot(
+                    gen_df['ph'], gen_df[rv],
+                    '.', markersize=2, color=color,
+                )[0]
+        ret.update(super().plot_curve(curve_container))
+        return ret
+
+    def plot_curves(self):
+        self.ax.axhline(0.0, color='gray', lw=1)
+        super().plot_curves()
+
+

@@ -5,11 +5,12 @@ from typing import Optional, List
 from PySide2.QtCore import Signal, Property
 from wdwrap.bundle import Bundle
 from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
+from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
-# logging.getLogger().setLevel(logging.DEBUG)
+
 
 class CurveContainer(PropertiesAccessContainer):
 
@@ -46,6 +47,7 @@ class CurveValuesContainer(PropertiesAccessContainer):
 
     plot = Property(bool, get_plot)
     sig_curve_changed = Signal(Container)
+    sig_curve_invalidated = Signal(Container)
 
 
 class CurveObservedContainer(CurveValuesContainer):
@@ -58,9 +60,17 @@ class CurveGeneratedContainer(CurveValuesContainer):
         data.observe(lambda change: self.on_curve_status_change(change), 'status')
 
     def on_curve_status_change(self, change):
+        logger().info('Curve {} status {} -> {}'.format(
+            self,
+            GeneratedValues.STATUS.to_str(change.old),
+            GeneratedValues.STATUS.to_str(change.new),
+        ))
         if change.new == GeneratedValues.STATUS.Ready:
             logging.info(f'Curve {self.content} ready - emitting signal')
             self.sig_curve_changed.emit(self)
+        elif change.new == GeneratedValues.STATUS.Invalid:
+            logging.info(f'Curve {self.content} invalid - emitting signal')
+            self.sig_curve_invalidated.emit(self)
 
 
 class CurvesModel(ContainesTreeModel):

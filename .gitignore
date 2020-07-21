@@ -101,3 +101,7 @@ ENV/
 
 # idea
 .idea
+
+# Dask Locks
+*.lock
+*.dirlock

@@ -1,4 +1,8 @@
 from collections import OrderedDict
+from typing import Iterator, Tuple
+
+from .drivers.filestructure import FileStructure
+from .param import ParFlag, Parameter
 
 
 class ParameterSet(OrderedDict):
@@ -42,6 +46,22 @@ class ParameterSet(OrderedDict):
     def set_value(self, key: int, value):
         """phoebe style, equivalent `to b[key] = val` """
         self[key] = value
+
+    def iter(self, flags_any=None, flags_all=None, flags_not=None, classes=None) -> Iterator[Tuple[str, Parameter]]:
+        for key, item in self.items():
+            if flags_any is not None and not item.flags & flags_any:
+                continue
+            if flags_all is not None and not (item.flags & flags_all) == flags_all:
+                continue
+            if flags_not is not None and not (item.flags & flags_not) == ParFlag.none:
+                continue
+            if classes is not None and type(item) not in classes:
+                continue
+            yield key, item
+
+    def observe(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None):
+        for key, item in self.iter(flags_any=flags_all, flags_all=flags_all, flags_not=flags_not, classes=classes):
+            item.observe(handler)
 
 
 

@@ -230,22 +230,30 @@ class GeneratedValues(CurveValues):
         Calculating = 1
         Ready = 0
 
+        @classmethod
+        def to_str(cls, status):
+            if status == cls.Canceling: return 'CANCELING'
+            if status == cls.Invalid: return 'INVALID'
+            if status == cls.Calculating: return 'CALCULATING'
+            if status == cls.Ready: return 'READY'
+
     status = Int(default_value=STATUS.Invalid)
 
     def __init__(self, *args, **kwargs):
+        self.gen_timeout = kwargs.get('timeout', 100)
         super().__init__(*args, **kwargs)
 
-    def generate(self, wait=False):
+    def generate(self, wait=False, timeout=None):
         pass
 
     def refresh(self, wait=False):
         """Generate if needed"""
         if self.status == self.STATUS.Invalid:
-            self.generate(wait=wait)
+            self.generate(wait=wait, timeout=self.gen_timeout)
 
     def invalidate(self):
-        if self.status == self.STATUS.Calculating: # cancel and re-generate
-            self.generate()
+        if self.status == self.STATUS.Calculating:  # cancel and re-generate
+            self.generate(timeout=self.gen_timeout)
         else:
             self.status = self.STATUS.Invalid
 
@@ -262,12 +270,13 @@ class WdGeneratedValues(GeneratedValues):
         self.calculation_semaphore = threading.Semaphore()
         self.is_rv = rv
         self.bundle = bundle
+        self.bundle.observe(lambda change: self.on_bundle_value_change(change))
         self.parameters = ParameterSet()
         self.segment_dividers = [0.0, 0.5, 1.0]
         self.segment_data = [{'PHIN': bundle['PHIN'].val}, {'PHIN': bundle['PHIN'].val}]
         self.futures: List[Future] = []
 
-    def generate(self, wait=False):
+    def generate(self, wait=False, timeout=None):
         self.cancel()
         bundle = self.bundle.copy()
         bundle.update(self.parameters)
@@ -279,7 +288,7 @@ class WdGeneratedValues(GeneratedValues):
             b['PHSTRT'] = lo
             b['PHSTOP'] = hi
             b['PHIN'] = self.segment_data[s]['PHIN']
-            f = JobScheduler.instance().schedule('lc', b)
+            f = JobScheduler.instance().schedule('lc', b, timeout=timeout)
             f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
             running = True
             logging.warning(f'Future scheduled: {f}')
@@ -325,9 +334,10 @@ class WdGeneratedValues(GeneratedValues):
         self.status = self.STATUS.Ready
 
     def cancel(self):
-        self.status = self.STATUS.Canceling
         for f in self.futures:
-            f.cancel()
+            if not f.done():
+                self.status = self.STATUS.Canceling
+                f.cancel()
         self.futures = []
 
     def segments_count(self) -> int:
@@ -398,6 +408,10 @@ class WdGeneratedValues(GeneratedValues):
         lo, hi = self.segment_range(segment)
         return math.isclose(lo, hi)
 
+    def on_bundle_value_change(self, change):
+        if not change.owner.flags & ParFlag.curvepriv:
+            self.invalidate()
+
 
 # ############ CURVES as observed/generated pair ####################### #
 
@@ -433,7 +447,7 @@ class WdCurve(Curve):
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.color = f'#{random.randint(0, 0xffffff):06x}44'
+        self.color = f'#{random.randint(0, 0xffffff):06x}'
         if bundle is None:
             bundle = Bundle.default_binary()
         self.gen_values = WdGeneratedValues(bundle=bundle, rv=self.is_rv())

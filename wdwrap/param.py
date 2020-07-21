@@ -1,5 +1,7 @@
 import re
 import astropy.units as u
+from traitlets import HasTraits, Instance
+
 from .fformat import FortranFormatter, Flags, Formatter, FortranDFormatter, FortranZFormatter
 
 u_Rsol = u.Unit("6.95660e5 km")
@@ -61,8 +63,9 @@ class ParFlag:
     outputspec  = 0b00001000  #  affects only output e.g. points
     lc          = 0b00010000  #  LC in
     dc          = 0b00100000  #  DC in
+    curvepriv   = 0b01000000  #  set for all curve calcualtion independently (may not be presented in UI)
 
-class Parameter(object):
+class Parameter(HasTraits):
     format_str = '{}'
     fmt_lcin = '{}'
     help_str = 'parameter'
@@ -72,6 +75,7 @@ class Parameter(object):
     unit = None
     nan_value = None
     flags = ParFlag.none
+    val = Instance(object, allow_none=True)
 
     def __init__(self, val=None):
         super(Parameter, self).__init__()

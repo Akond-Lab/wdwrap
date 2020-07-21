@@ -20,7 +20,7 @@ class MPAGE(IntParameter):
     SPECT = 3
     RELAT = 4
     IMAGE = 5
-    flags = ParFlag.outputspec | ParFlag.controlling | ParFlag.lc
+    flags = ParFlag.outputspec | ParFlag.controlling | ParFlag.curvepriv | ParFlag.lc
 
 
 class NREF(IntParameter):
@@ -138,7 +138,7 @@ class JDPHS(IntParameter):
     min, max = 1, 2
     help_val = {1: 'time', 2: 'phase'}
     fmt_lcin = FortranFormatter('i', 1)
-    flags = ParFlag.controlling | ParFlag.lc | ParFlag.dc
+    flags = ParFlag.curvepriv | ParFlag.controlling | ParFlag.lc | ParFlag.dc
 
 class HJD0(FloatParameter):
     """(t0) This is the zero point of the orbital ephemeris. Usually one uses Heliocentric Julian Date,
@@ -217,21 +217,21 @@ class HJDST(FloatParameter):
     help_str = 'output start time'
     unit = u.day
     fmt_lcin = FortranFormatter('f', 14, 6)  # F.f14_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class HJDSP(FloatParameter):
     """The time at which LC is to stops computing output points. HJDSP is utilized only if JDPHS=1."""
     help_str = 'output stop time'
     unit = u.day
     fmt_lcin = FortranFormatter('f', 14, 6, flags=Flags.ZERO)  # F.f15_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class HJDIN(FloatParameter):
     """The time increment for output points. HJDIN = 0.001 will produce output points spaced by 0.001 days."""
     help_str = 'output time increment'
     unit = u.day
     fmt_lcin = FortranFormatter('f', 12, 6, flags=Flags.ZERO)  # F.f13_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class PHSTRT(FloatParameter):
     """The first phase at which output points are to be produced. PHSTOP should be larger than PHSTRT,
@@ -239,7 +239,7 @@ class PHSTRT(FloatParameter):
     PHSTRT, PHSTOP, and the next quantity, PHIN, are utilized only if JDPHS=2"""
     help_str = 'output start phase'
     fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class PHSTOP(FloatParameter):
     """The last phase at which output points are to be produced. PHSTOP should be larger than PHSTRT,
@@ -247,14 +247,14 @@ class PHSTOP(FloatParameter):
     PHSTRT, PHSTOP, and the next quantity, PHIN, are utilized only if JDPHS=2"""
     help_str = 'output end phase'
     fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class PHIN(FloatParameter):
     """The phase increment for output points. PHIN = 0.020 will produce output points every 0.020 in phase,
     within the range PHSTRT to PHSTOP. PHIN, are utilized only if JDPHS=2"""
     help_str = 'output phase increment'
     fmt_lcin = FortranFormatter('f', 11, 6, flags=Flags.ZERO | Flags.SIGN)  # F.f12_6
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvepriv | ParFlag.outputspec | ParFlag.lc
 
 class PHN(FloatParameter):
     """The phase of normalization, which is the phase at which the column of normalized light is normalized
@@ -737,7 +737,7 @@ class ZERO(FloatParameter):
     """This is the reference level for output magnitudes (the magnitude at phase PHN)"""
     fmt_lcin = FortranFormatter('f', 7, 3, Flags.SIGN)  # F.f8_3
     help_str = 'magnitude zero point'
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvedep| ParFlag.outputspec | ParFlag.lc
 
 
 class FACTOR(FloatParameter):
@@ -745,7 +745,7 @@ class FACTOR(FloatParameter):
     The number in that column will equal FACTOR at phase PHN"""
     fmt_lcin = FortranFormatter('f', 7, 4, Flags.ZERO)  # F.f8_4
     help_str = 'normalized light scaling factor'
-    flags = ParFlag.outputspec | ParFlag.lc
+    flags = ParFlag.curvedep | ParFlag.outputspec | ParFlag.lc
 
 
 class WL(FloatParameter):  # WLA
