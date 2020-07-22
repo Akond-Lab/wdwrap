@@ -10,24 +10,27 @@ from .config import cfg
 
 
 class Runner(object):
+    """Stateless Runner
+
+    Thread safe, multiple jobs can be run be runner. Runner does not store state of the runner.
+    """
     def __init__(self):
-        self.canceled = False
-        self.proc = None
         super(Runner, self).__init__()
 
     def __call__(self, bundle, timeout=None):
         # TODO: super slow temp:
         import time
-        time.sleep(5)
+        # time.sleep(5)
         return self.run(bundle=bundle, timeout=timeout)
 
     def run(self, bundle, timeout=None):
         raise NotImplementedError
 
-    def cancel(self):
+    def cancel(self, proc):
         self.canceled = True
         try:
             self.proc.kill()
+            logging.getLogger('runner').info(f'Canceling job. Killing')
         except AttributeError:
             pass
 
@@ -47,13 +50,14 @@ class LcRunner(Runner):
 
         with WdTempDir(bundle.wdversion, delete_on_exit=False) as d:
             self.write_lcin(bundle, d)
-            self.proc = subprocess.Popen([self.executable], cwd=d,
+            proc = subprocess.Popen([self.executable], cwd=d,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    universal_newlines=True)
+                                    text=True)
             try:
-                outs, errs = self.proc.communicate(timeout=timeout)
+                outs, errs = proc.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
-                self.proc.kill()
+                logging.getLogger('runner').info(f'Timeout ({timeout}s) occurred. Killing')
+                proc.kill()
                 raise TimeoutError
 
             errors = re.search(r'error:\s*(.*)', errs)

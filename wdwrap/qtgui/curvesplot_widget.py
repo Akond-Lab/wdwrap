@@ -59,7 +59,7 @@ class CurvesPlotWidget(FigureCanvas):
             self.invalidate_curve(curve_values_container)
             curve: WdCurve = curve_container.content
             curve.gen_values.refresh()
-            self.logger.info('Forced curve {curve_values_container} refresh')
+            self.logger.info(f'Forced curve {curve_values_container} refresh')
 
 
     def update_curve(self, curve_values_container: CurveValuesContainer):
@@ -167,7 +167,6 @@ class LightPlotWidget(WdCurvesPlotWidget):
         if curve_container.plot:
             curve: WdCurve = curve_container.content
             gen = curve.gen_values
-            # gen.refresh(wait=True)  # TODO: Temporary - delete later
             gen_df = gen.get_values_at()
             ret['gen_approx'] = self.ax.plot(
                 gen_df['ph'], gen_df['mag'],

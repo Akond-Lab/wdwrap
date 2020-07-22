@@ -9,7 +9,7 @@ class TestUiCurves(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_curve_contruction(self):
+    def test_curve_construction(self):
         from wdwrap.jupyterui.curves import LightCurve, VelocCurve
         lc = LightCurve()
         vc = VelocCurve()

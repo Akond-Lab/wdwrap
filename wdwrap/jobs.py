@@ -1,9 +1,13 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 from __future__ import annotations
+
+from configparser import NoSectionError, NoOptionError
 from typing import Callable, Mapping, Optional
 import logging
 
 from dask.distributed import Client, Future
+
+from wdwrap.config import cfg
 from wdwrap.runners import LcRunner
 
 class JobScheduler(object):
@@ -11,7 +15,7 @@ class JobScheduler(object):
 
     def __init__(self,
                  executors: Optional[Mapping[str, Callable]] = None,
-                 client: Optional[Client] = None) -> None:
+                 client: Optional[Client] = None,) -> None:
         if self._instance is not None:
             raise RuntimeError(
                 'Do instance JobScheduler directly, use JobScheduler.instance to obtain singleton instance')
@@ -20,8 +24,12 @@ class JobScheduler(object):
             executors = {}
         self.executors = executors
         if client is None:
-            logging.info('Setting up multiprocess dash client')
-            client = Client()
+            try:
+                n = cfg().getint('jobs', 'workers')
+            except (NoSectionError, NoOptionError, ValueError):
+                n = None
+            logging.info(f'Setting up multiprocess dash client with {n} workers')
+            client = Client(n_workers=n)
         self.client = client
 
     def schedule(self, job_kind, *args, **kwargs) -> Future:

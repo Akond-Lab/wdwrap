@@ -18,6 +18,7 @@ from dask.distributed import Future
 
 from .wdtraits import WdParamTraitCollection
 from ..bundle import Bundle
+from ..config import cfg
 from ..jobs import JobScheduler
 from ..param import ParFlag
 from ..drivers import MPAGE
@@ -240,7 +241,7 @@ class GeneratedValues(CurveValues):
     status = Int(default_value=STATUS.Invalid)
 
     def __init__(self, *args, **kwargs):
-        self.gen_timeout = kwargs.get('timeout', 100)
+        self.gen_timeout = kwargs.get('timeout', cfg().getfloat('timeouts', 'ui-curve-calc'))
         super().__init__(*args, **kwargs)
 
     def generate(self, wait=False, timeout=None):
@@ -267,13 +268,15 @@ class WdGeneratedValues(GeneratedValues):
 
     def __init__(self, *args, bundle: Bundle, rv: bool, **kwargs):
         super().__init__(*args, **kwargs)
-        self.calculation_semaphore = threading.Semaphore()
+        self.calculation_semaphore = threading.Lock()
         self.is_rv = rv
         self.bundle = bundle
         self.bundle.observe(lambda change: self.on_bundle_value_change(change))
         self.parameters = ParameterSet()
-        self.segment_dividers = [0.0, 0.5, 1.0]
-        self.segment_data = [{'PHIN': bundle['PHIN'].val}, {'PHIN': bundle['PHIN'].val}]
+        n = cfg().getint('curves', 'default-segments')
+        assert 0 < n <= 20
+        self.segment_dividers = list(np.linspace(0, 1, n+1))
+        self.segment_data = [{'PHIN': bundle['PHIN'].val} for _ in range(n)]  # n identical (but not the same) dicts
         self.futures: List[Future] = []
 
     def generate(self, wait=False, timeout=None):
@@ -288,6 +291,7 @@ class WdGeneratedValues(GeneratedValues):
             b['PHSTRT'] = lo
             b['PHSTOP'] = hi
             b['PHIN'] = self.segment_data[s]['PHIN']
+            self.calculation_semaphore.acquire(blocking=False)
             f = JobScheduler.instance().schedule('lc', b, timeout=timeout)
             f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
             running = True
@@ -295,13 +299,14 @@ class WdGeneratedValues(GeneratedValues):
             self.futures.append(f)
         if running:
             self.status = self.STATUS.Calculating
-            self.calculation_semaphore.acquire()
         if wait:
             self.wait()
 
     def wait(self, timeout=None) -> bool:
+        if timeout is None:
+            timeout = -1
         if self.calculation_semaphore.acquire(timeout=timeout):
-            self.calculation_semaphore.release()
+            self._release_semaphore()
             return True
         else: #  timeout
             return False
@@ -309,12 +314,16 @@ class WdGeneratedValues(GeneratedValues):
 
     def on_segment_calculated(self, fut):
         logging.warning(f'Future done: {fut}')
-        for f in self.futures:
+        if fut not in self.futures:  # ignore old futures
+            return
+        for f in self.futures:  # ignore if there are some futures still running
             if not f.done():
                 return
+        futures = self.futures
+        self.futures = []
         logging.warning(f'Futures all done, collecting')
         results = []
-        for f in self.futures:
+        for f in futures:
             result = f.result()
             df = result.get('veloc' if self.is_rv else 'light', None)
             if df is not None:
@@ -327,11 +336,17 @@ class WdGeneratedValues(GeneratedValues):
         df.sort_values(self.indep_column)
         df.reindex()
         self.set_df(df)
-        self.calculation_semaphore.release()
+        self._release_semaphore()
 
     def set_df(self, df):
         super().set_df(df)
         self.status = self.STATUS.Ready
+
+    def _release_semaphore(self):
+        try:
+            self.calculation_semaphore.release()
+        except RuntimeError:
+            pass
 
     def cancel(self):
         for f in self.futures:
@@ -339,6 +354,7 @@ class WdGeneratedValues(GeneratedValues):
                 self.status = self.STATUS.Canceling
                 f.cancel()
         self.futures = []
+        self._release_semaphore()
 
     def segments_count(self) -> int:
         return len(self.segment_data)
