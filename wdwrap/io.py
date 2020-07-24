@@ -254,7 +254,8 @@ class DataFrameReader(Reader):
         return self._df
 
     def _read(self):
-        raise NotImplementedError
+        return pd.read_table(self.fd, delim_whitespace=True, comment='#', header=None,
+                             names=self.columns['names'] if self.columns else None)
 
 class FixedTableReader(DataFrameReader):
 

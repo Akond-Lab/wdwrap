@@ -3,6 +3,8 @@
 import PySide2
 from PySide2.QtWidgets import QSplitter, QTreeView
 from PySide2.QtCore import Qt, QSettings
+
+from wdwrap.qtgui.curve_delegate import CurvesTableDelegate
 from wdwrap.qtgui.curvesplot_widget import LightPlotWidget, RvPlotWidget
 from wdwrap.qtgui.parameters_delegate import ParametersTableDelegate
 from wdwrap.qtgui.project import Project
@@ -29,6 +31,8 @@ class ProjectWidget(QSplitter):
 
         self.w_curves_tree = QTreeView()
         self.w_curves_tree.setModel(self.project.curves_model)
+        delegate = CurvesTableDelegate()
+        self.w_curves_tree.setItemDelegate(delegate)
 
         self.w_light_plot = LightPlotWidget(self.project.curves_model)
         self.w_rv_plot = RvPlotWidget(self.project.curves_model)

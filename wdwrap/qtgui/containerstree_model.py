@@ -10,11 +10,11 @@ from PySide2.QtCore import QModelIndex, Qt, QAbstractItemModel
 from wdwrap.qtgui.container import Container
 
 
-class ContainesTreeModel(QAbstractItemModel):
+class ContainersTreeModel(QAbstractItemModel):
     """Base class for Tree models"""
 
     def __init__(self, parent):
-        super(ContainesTreeModel, self).__init__(parent)
+        super(ContainersTreeModel, self).__init__(parent)
         self.root = Container('root', self)
         self.display_root = self.root
         self.columns = ColumnsPreset()

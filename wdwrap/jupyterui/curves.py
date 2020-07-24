@@ -56,7 +56,7 @@ class CurvePhaser(CurveTransformer):
     def transform(self, df):
         try:
             ph = ((df[self.col_hjd] - self.hjd0) / self.period + self.delta) % 1.0
-        except KeyError:  # no hjd column
+        except KeyError:  # no hjd column, do not overwrite 'ph'
             return df
         except TypeError:  #  period is None
             mi = df[self.col_hjd].min()
@@ -103,6 +103,7 @@ class CurveValues(HasTraits):
     df_version = Int()  # observe for transformed data change
     dataframe = Instance(pd.DataFrame, ())  # observe for original dataframe change
     plot = Bool()
+    # TODO implement linear approximator
     approx_order = Int(default_value=0)
     approx_method = Unicode(default_value='cubic-spline')
     approx_periodic = Bool(default_value=True)
@@ -118,17 +119,17 @@ class CurveValues(HasTraits):
         self.observe(lambda change: self.get_approximators.invalidate_caches(),
                      ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
 
-    def invalidate_caches(self):
+    def on_data_changed(self):
         self.get_approximators.cache_clear()
-        # self.get_values_at.cache_clear()
+        self.df_version += 1
 
     @property
     def df(self):
         return self.dataframe
 
     def set_df(self, df):
-        self.invalidate_caches()
         self.dataframe = df
+        self.on_data_changed()
 
     @functools.lru_cache()
     def get_approximators(self):
@@ -144,7 +145,10 @@ class CurveValues(HasTraits):
                     kwargs = {}
                     if self.approx_periodic:
                         kwargs['extrapolate'] = 'periodic'
-                        ret[c] = CubicSpline(self.df[self.indep_column], self.df[c], **kwargs)
+                        try:
+                            ret[c] = CubicSpline(self.df[self.indep_column], self.df[c], **kwargs)
+                        except ValueError: # to little data rows
+                            ret[c] = np.frompyfunc(lambda x: np.nan, 1, 1)  # returns nans of shape of x
                 else:
                     logging.error(f'Unknown interpolation method "{self.approx_method}"')
         return ret
@@ -189,16 +193,16 @@ class ConvertedValues(CurveValues):
             t.observe(lambda change: self.on_transformer_changed(change))
 
     def on_transformer_changed(self, change):
-        self.invalidate_caches()
+        self.on_data_changed()
 
     def transform(self, df):
         for trans in self.transformers.values():
             df = trans.transform(df)
         return df
 
-    def invalidate_caches(self):
+    def on_data_changed(self):
         self.cached_df = None
-        super().invalidate_caches()
+        super().on_data_changed()
 
     @property
     def df(self):
@@ -207,14 +211,27 @@ class ConvertedValues(CurveValues):
         return self.cached_df
 
 
-class ObserverdValues(ConvertedValues):
-    filename = Unicode()
+class ObservedValues(ConvertedValues):
+    _filename = Unicode(default_value='<none>')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def load(self, fd):
         pass
+
+    @property
+    def filename(self):
+        return self._filename
+
+    @filename.setter
+    def filename(self, val):
+        df = None
+        if isinstance(val, tuple):
+            val, df = val
+        if df is not None:
+            self.set_df(df)
+        self._filename = val
 
     @property
     def phaser(self) -> CurvePhaser:
@@ -436,7 +453,7 @@ class Curve(HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gen_values = GeneratedValues()
-        self.obs_values = ObserverdValues()
+        self.obs_values = ObservedValues()
 
     # def get_points_generated(self, calc_at=None, generate=True):
     #     pass
@@ -472,6 +489,16 @@ class WdCurve(Curve):
 
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
         self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
+        self.obs_values.phaser.period = float(bundle['PERIOD'])
+        self.obs_values.phaser.hjd0 = float(bundle['HJD0'])
+        bundle['PERIOD'].observe(lambda change: self.on_period_change(change))
+        bundle['HJD0'].observe(lambda change: self.on_hjd0_change(change))
+
+    def on_period_change(self, change):
+        self.obs_values.phaser.period = float(change.new)
+
+    def on_hjd0_change(self, change):
+        self.obs_values.phaser.hjd0 = float(change.new)
 
     @classmethod
     def is_rv(cls): return False

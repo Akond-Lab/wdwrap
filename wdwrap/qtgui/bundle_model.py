@@ -2,10 +2,10 @@
 
 from wdwrap.bundle import Bundle
 from wdwrap.qtgui.container import Container
-from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
+from wdwrap.qtgui.containerstree_model import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
-class BundleModel(ContainesTreeModel):
+class BundleModel(ContainersTreeModel):
     def __init__(self, bundle: Bundle = None, parent=None):
         self.bundle = bundle
         super().__init__(parent)

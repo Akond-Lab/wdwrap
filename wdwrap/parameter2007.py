@@ -377,7 +377,7 @@ class VUNIT(FloatParameter):
     min = 0.0
     unit = u.km/u.s
     fmt_lcin = FortranFormatter('f', 7, 2, flags=Flags.ZERO)  # F.f8_2
-    flags = ParFlag.controlling | ParFlag.lc | ParFlag.dc
+    flags = ParFlag.curvedep | ParFlag.lc | ParFlag.dc
 
 #  LINE 5
 

@@ -7,7 +7,7 @@ from wdwrap.bundle import Bundle
 from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
 from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
-from wdwrap.qtgui.containerstree_model import ContainesTreeModel, ColumnsPreset
+from wdwrap.qtgui.containerstree_model import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
 
@@ -51,12 +51,25 @@ class CurveValuesContainer(PropertiesAccessContainer):
 
 
 class CurveObservedContainer(CurveValuesContainer):
-    pass
+    def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
+        super().__init__(name, data, parent, columns_mapper, read_only)
+        data.observe(lambda change: self.on_curve_data_change(change), 'df_version')
+
+    def on_curve_data_change(self, change):
+        logger().info('Curve {} data changed - emitting signal'.format(self))
+        self.sig_curve_changed.emit(self)
+
+    # def get_file(self):
+    #     return 'self.content.plot'
+    # def set_file(self, val):
+    #     self.content.plot = val
+    #
+    # file = Property(str, get_file, set_file)
 
 class CurveGeneratedContainer(CurveValuesContainer):
 
-    def __init__(self, name, data, parent=None):
-        super().__init__(name, data, parent)
+    def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
+        super().__init__(name, data, parent, columns_mapper, read_only)
         data.observe(lambda change: self.on_curve_status_change(change), 'status')
 
     def on_curve_status_change(self, change):
@@ -73,7 +86,7 @@ class CurveGeneratedContainer(CurveValuesContainer):
             self.sig_curve_invalidated.emit(self)
 
 
-class CurvesModel(ContainesTreeModel):
+class CurvesModel(ContainersTreeModel):
     def __init__(self, curves: Optional[List[WdCurve]] = None, parent=None):
         self.curves = curves
         super().__init__(parent)
@@ -99,8 +112,9 @@ class CurvesModel(ContainesTreeModel):
             c = CurveContainer(name, l, self.display_root)
             ParentColumnContainer('plot', c)
             ParentColumnContainer('fit', c)
-            CurveGeneratedContainer('generated', l.gen_values, c)
-            o = CurveObservedContainer('observed', l.obs_values, c)
+            g = CurveGeneratedContainer('synthetic', l.gen_values, c)
+            o = CurveObservedContainer('observed', l.obs_values, c, read_only=False)
+            ParentColumnContainer('file', o, parents_column='filename')
             ParentColumnContainer('bins', o)
             ParentColumnContainer('min', o)
             ParentColumnContainer('max', o)

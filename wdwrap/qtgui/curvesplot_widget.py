@@ -1,7 +1,7 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import logging
 from collections import OrderedDict
-from typing import Mapping
+from typing import Mapping, Any
 
 import numpy as np
 from PySide2.QtCore import Slot, Qt, QSize
@@ -13,7 +13,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from wdwrap.jupyterui.curves import WdCurve, WdGeneratedValues
+from wdwrap.jupyterui.curves import WdCurve, WdGeneratedValues, ObservedValues
 from wdwrap.qtgui.curves_model import CurvesModel, CurveValuesContainer, CurveContainer
 
 class NavigationToolbar (NavigationToolbar2QT):
@@ -26,7 +26,7 @@ class CurvesPlotWidget(FigureCanvas):
         self.figure = Figure(figsize=figsize)
         self.figure.tight_layout()
         self.logger = logging.getLogger('curvfig')
-        self.curves_artists: OrderedDict[WdCurve, Mapping[str, Artist]] = OrderedDict()
+        self.curves_artists: OrderedDict[WdCurve, Mapping[str, Any]] = OrderedDict()
 
         # fig.subplots_adjust(left=0, bottom=0.001, right=1, top=1, wspace=None, hspace=None)
         super().__init__(self.figure)
@@ -48,12 +48,19 @@ class CurvesPlotWidget(FigureCanvas):
             self.curves_artists[curve] = shapes
 
     @Slot(CurveValuesContainer)
-    def on_curve_changed(self, curve_values_container):
-        self.logger.info(f'On curve change  {curve_values_container.content}: adjusting')
-        self.update_curve(curve_values_container)
+    def on_observed_curve_changed(self, curve_values_container):
+        self.logger.info(f'On observed curve change  {curve_values_container.content}: adjusting')
+        self.update_observed_curve(curve_values_container)
+        self.update_residuals_curve(curve_values_container)
 
     @Slot(CurveValuesContainer)
-    def on_curve_invalidated(self, curve_values_container):
+    def on_generated_curve_changed(self, curve_values_container):
+        self.logger.info(f'On generated curve change  {curve_values_container.content}: adjusting')
+        self.update_generated_curve(curve_values_container)
+        self.update_residuals_curve(curve_values_container)
+
+    @Slot(CurveValuesContainer)
+    def on_generated_curve_invalidated(self, curve_values_container):
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
             self.invalidate_curve(curve_values_container)
@@ -63,6 +70,17 @@ class CurvesPlotWidget(FigureCanvas):
 
 
     def update_curve(self, curve_values_container: CurveValuesContainer):
+        self.update_generated_curve(curve_values_container)
+        self.update_observed_curve(curve_values_container)
+        self.update_residuals_curve(curve_values_container)
+
+    def update_generated_curve(self, curve_values_container: CurveValuesContainer):
+        pass
+
+    def update_observed_curve(self, curve_values_container: CurveValuesContainer):
+        pass
+
+    def update_residuals_curve(self, curve_values_container: CurveValuesContainer):
         pass
 
     def invalidate_curve(self, curve_values_container: CurveValuesContainer):
@@ -71,12 +89,12 @@ class CurvesPlotWidget(FigureCanvas):
     def plot_curve(self, curve_container: CurveContainer):
 
         if curve_container.plot:
-            g: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'generated')
+            g: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'synthetic')
             o: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'observed')
 
-            g.sig_curve_changed.connect(self.on_curve_changed)
-            g.sig_curve_invalidated.connect(self.on_curve_invalidated)
-            o.sig_curve_changed.connect(self.on_curve_changed)
+            g.sig_curve_changed.connect(self.on_generated_curve_changed)
+            g.sig_curve_invalidated.connect(self.on_generated_curve_invalidated)
+            o.sig_curve_changed.connect(self.on_observed_curve_changed)
             curve = curve_container.content
             curve.gen_values.refresh()
         return {}
@@ -116,6 +134,8 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
     def redraw_idle(self):
         self.ax.relim()
         self.ax.autoscale()
+        self.ax_resid.relim()
+        self.ax_resid.autoscale()
         self.ax.set_xlim(-0.1, 1.1, auto=False)
         self.draw_idle()
 
@@ -134,7 +154,7 @@ class LightPlotWidget(WdCurvesPlotWidget):
     #             curve.observe(lambda change: self.on_curve_changed(change))
 
     def invalidate_curve(self, curve_values_container: CurveValuesContainer):
-        super().update_curve(curve_values_container)
+        super().invalidate_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
             artists = self.curves_artists[curve_container]
@@ -143,8 +163,8 @@ class LightPlotWidget(WdCurvesPlotWidget):
             line.set_ydata([])
             self.redraw_idle()
 
-    def update_curve(self, curve_values_container: CurveValuesContainer):
-        super().update_curve(curve_values_container)
+    def update_generated_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_generated_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
             curve: WdCurve = curve_container.content
@@ -159,8 +179,38 @@ class LightPlotWidget(WdCurvesPlotWidget):
             line: Line2D = artists['gen_approx']
             line.set_xdata(x)
             line.set_ydata(y)
-
             self.redraw_idle()
+
+    def update_observed_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_observed_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            observed: ObservedValues = curve.obs_values
+            obs_df = observed.get_values_at()
+            artists = self.curves_artists[curve_container]
+            line: Line2D = artists['obs']
+            line.set_xdata(obs_df['ph'])
+            line.set_ydata(obs_df['mag'])
+            #TODO update error bars/caps
+            self.redraw_idle()
+
+    def update_residuals_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_residuals_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            observed: ObservedValues = curve.obs_values
+            generated: WdGeneratedValues = curve.gen_values
+            obs_df = observed.get_values_at()
+            residuals = obs_df['mag'] - generated.get_values_at(obs_df['ph'])['mag']
+            artists = self.curves_artists[curve_container]
+            line: Line2D = artists['resid']
+            line.set_xdata(obs_df['ph'])
+            line.set_ydata(residuals)
+            #TODO update error bars/caps
+            self.redraw_idle()
+
 
     def plot_curve(self, curve_container: CurveContainer):
         ret = {}
@@ -176,6 +226,25 @@ class LightPlotWidget(WdCurvesPlotWidget):
                 gen_df['ph'], gen_df['mag'],
                 '.', markersize=2, color=curve.color,
             )[0]
+            obs = curve.obs_values
+            obs_df = obs.get_values_at()
+            try:
+                errors = obs_df['mag_e']
+            except LookupError:
+                errors = None
+            obs_plot_result = self.ax.errorbar(
+                obs_df['ph'], obs_df['mag'], yerr=errors,
+                fmt='.', color=curve.color, alpha=0.9, markersize=4,
+            )
+            ret['obs'], ret['obs_errcaps'], ret['obs_errbars'] = obs_plot_result
+            gen_at_obs = gen.get_values_at(obs_df['ph'])
+            resid_at_obs = obs_df['mag'] - gen_at_obs['mag']
+            resid_plot_result = self.ax_resid.errorbar(
+                obs_df['ph'], resid_at_obs, yerr=errors,
+                fmt='.', color=curve.color, alpha=0.9, markersize=4,
+            )
+            ret['resid'], ret['resid_errcaps'], ret['resid_errbars'] = resid_plot_result
+
         ret.update(super().plot_curve(curve_container))
         return ret
 
@@ -185,7 +254,7 @@ class RvPlotWidget(WdCurvesPlotWidget):
         return curve.content.is_rv() and super().curves_filter(curve, **kwargs)
 
     def invalidate_curve(self, curve_values_container: CurveValuesContainer):
-        super().update_curve(curve_values_container)
+        super().invalidate_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
             artists = self.curves_artists[curve_container]
@@ -195,8 +264,8 @@ class RvPlotWidget(WdCurvesPlotWidget):
                 line.set_ydata([])
             self.redraw_idle()
 
-    def update_curve(self, curve_values_container: CurveValuesContainer):
-        super().update_curve(curve_values_container)
+    def update_generated_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_generated_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
             curve: WdCurve = curve_container.content
@@ -214,12 +283,49 @@ class RvPlotWidget(WdCurvesPlotWidget):
                 line.set_ydata(y[rv])
             self.redraw_idle()
 
+    def update_observed_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_observed_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            observed: ObservedValues = curve.obs_values
+            obs_df = observed.get_values_at()
+            artists = self.curves_artists[curve_container]
+            for rv in ['rv1', 'rv2']:
+                line: Line2D = artists['obs_'+rv]
+                line.set_xdata(obs_df['ph'])
+                line.set_ydata(obs_df[rv])
+            #TODO update error bars/caps
+            self.redraw_idle()
+
+    def update_residuals_curve(self, curve_values_container: CurveValuesContainer):
+        super().update_residuals_curve(curve_values_container)
+        curve_container: CurveContainer = curve_values_container.parent()
+        if curve_container.plot:
+            curve: WdCurve = curve_container.content
+            observed: ObservedValues = curve.obs_values
+            generated: WdGeneratedValues = curve.gen_values
+            obs_df = observed.get_values_at()
+            generated_at_observed = generated.get_values_at(obs_df['ph'])
+            artists = self.curves_artists[curve_container]
+            for rv in ['rv1', 'rv2']:
+                residuals = obs_df[rv] - generated_at_observed[rv]
+                line: Line2D = artists['resid_'+rv]
+                line.set_xdata(obs_df['ph'])
+                line.set_ydata(residuals)
+            #TODO update error bars/caps
+            self.redraw_idle()
+
+
     def plot_curve(self, curve_container: CurveContainer):
         ret = {}
         if curve_container.plot:
             curve: WdCurve = curve_container.content
             gen = curve.gen_values
             gen_df = gen.get_values_at()
+            obs = curve.obs_values
+            obs_df = obs.get_values_at()
+            gen_at_obs = gen.get_values_at(obs_df['ph'])
             for rv, color in [('rv1', 'red'), ('rv2', 'blue')]:
                 ret['gen_approx_'+rv] = self.ax.plot(
                     gen_df['ph'], gen_df[rv],
@@ -229,6 +335,23 @@ class RvPlotWidget(WdCurvesPlotWidget):
                     gen_df['ph'], gen_df[rv],
                     '.', markersize=2, color=color,
                 )[0]
+
+                try:
+                    errors = obs_df[rv+'_e'],
+                except LookupError:
+                    errors = None
+                obs_plot_result = self.ax.errorbar(
+                    obs_df['ph'], obs_df[rv], yerr=errors,
+                    fmt='.', color=color, alpha=0.9, markersize=4,
+                )
+                ret['obs_'+rv], ret['obs_errcaps_'+rv], ret['obs_errbars_'+rv] = obs_plot_result
+                resid_at_obs = obs_df[rv] - gen_at_obs[rv]
+                resid_plot_result = self.ax_resid.errorbar(
+                    obs_df['ph'], resid_at_obs, yerr=errors,
+                    fmt='.', color=color, alpha=0.9, markersize=4,
+                )
+                ret['resid_'+rv], ret['resid_errcaps_'+rv], ret['resid_errbars_'+rv] = resid_plot_result
+
         ret.update(super().plot_curve(curve_container))
         return ret
 

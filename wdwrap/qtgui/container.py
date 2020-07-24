@@ -13,7 +13,10 @@ class Container(QObject):
     def get_content(self):
         return self._content
 
-    content = Property(str, get_content, constant=True)
+    def _get_content_property(self):
+        return self.get_content()
+
+    content = Property(str, _get_content_property, constant=True)
 
     def data(self, column: str, role: int):
         if role in [Qt.DisplayRole, Qt.EditRole]:
@@ -56,14 +59,14 @@ class PropertiesAccessContainer(Container):
             return []
         if isinstance(v, bool):
             if self.col_read_only(column):
-                return [Qt.CheckStateRole]
+                return [Qt.CheckStateRole]  # 10
             else:
-                return [Qt.CheckStateRole, Qt.EditRole]
+                return [Qt.CheckStateRole, Qt.EditRole]  # 10 2
         else:
             if self.col_read_only(column):
-                return [Qt.DisplayRole]
+                return [Qt.DisplayRole]  # 0
             else:
-                return [Qt.DisplayRole, Qt.EditRole]
+                return [Qt.DisplayRole, Qt.EditRole]  # 0 2
 
     def data(self, column: str, role: int):
         ret = None
@@ -71,6 +74,8 @@ class PropertiesAccessContainer(Container):
             try:
                 prop_name = self.mapper(column)
                 ret = getattr(self.content, prop_name)
+                if isinstance(ret, bool):
+                    ret = Qt.Checked if ret else Qt.Unchecked
             except (LookupError, AttributeError):
                 pass
         if ret is None:
@@ -82,7 +87,10 @@ class PropertiesAccessContainer(Container):
         if role in self.roles(column):
             try:
                 prop_name = self.mapper(column)
-                if data != getattr(self.content, prop_name):
+                old = getattr(self.content, prop_name)
+                if isinstance(old, bool):
+                    data = not data == Qt.Unchecked
+                if data != old:
                     setattr(self.content, prop_name, data)
                     changed = True
             except (LookupError, AttributeError):
