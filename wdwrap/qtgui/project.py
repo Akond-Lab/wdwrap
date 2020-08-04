@@ -21,3 +21,9 @@ class Project(QObject):
             VelocCurve(bundle=self.bundle)
         ])
 
+    def load_bundle(self, filename):
+        newbundle = Bundle.open(filename)
+        self.bundle.populate_from(newbundle)
+
+    def save_bundle(self, filename):
+        raise NotImplementedError('Implement this!') #TODO

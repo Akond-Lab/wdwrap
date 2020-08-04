@@ -34,6 +34,44 @@ class ParameterSet(OrderedDict):
         new.reindex()
         return new
 
+    def populate_from(self, source: 'ParameterSet'):
+        import copy
+        # lines identified by first element's name
+        source_lines = [self._line_id(l) for l in source.lines]
+
+        #remove lines not existing in source
+        for n, line in enumerate(self.lines):
+            if self._line_id(line) not in source_lines:
+                names = [par.name() for par in line.values()]
+                for name in names:
+                    del self[name]
+                self.lines[n] = None
+        self.lines = [l for l in self.lines if l is not None]
+
+        self_lines = [self._line_id(l) for l in self.lines]
+        for n, line in enumerate(source.lines):
+            id = source._line_id(line)
+            if id == self._line_number_id(n):  # we have source line, copy values
+                for k, v in line.items():
+                    self[k].val = v.val
+            else:
+                newline = OrderedDict()
+                for k, v in line.items():
+                    toadd = copy.copy(v)
+                    newline[k] = toadd
+                    self[k] = toadd
+                self.lines.insert(n, newline)
+
+    @staticmethod
+    def _line_id(line):
+        return next(iter(line))
+
+    def _line_number_id(self, n):
+        try:
+            return self._line_id(self.lines[n])
+        except LookupError:
+            return None
+
     def reindex(self):
         super(ParameterSet, self).clear()
         for line in self.lines:

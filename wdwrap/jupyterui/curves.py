@@ -1,6 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import functools
-import logging
 import math
 import threading
 from collections import OrderedDict
@@ -30,6 +29,16 @@ Module contains three families of classes:
    * `CurveValues` : represents Dataframe with indempendent variable and one or more values
    * `Curve` : The curve with metadata, observed CurveValues, model-generated CurveValues
 """
+
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('curves')
+    return _logger
+
+
 
 class CurveTransformer(HasTraits):
     """Transformes one dataframe into another"""
@@ -150,7 +159,7 @@ class CurveValues(HasTraits):
                         except ValueError: # to little data rows
                             ret[c] = np.frompyfunc(lambda x: np.nan, 1, 1)  # returns nans of shape of x
                 else:
-                    logging.error(f'Unknown interpolation method "{self.approx_method}"')
+                    logger().error(f'Unknown interpolation method "{self.approx_method}"')
         return ret
 
     # @functools.lru_cache()
@@ -312,7 +321,7 @@ class WdGeneratedValues(GeneratedValues):
             f = JobScheduler.instance().schedule('lc', b, timeout=timeout)
             f.add_done_callback(lambda fut: self.on_segment_calculated(fut))
             running = True
-            logging.warning(f'Future scheduled: {f}')
+            logger().info(f'Future scheduled: {f}')
             self.futures.append(f)
         if running:
             self.status = self.STATUS.Calculating
@@ -330,7 +339,7 @@ class WdGeneratedValues(GeneratedValues):
 
 
     def on_segment_calculated(self, fut):
-        logging.warning(f'Future done: {fut}')
+        logger().info(f'Future done: {fut}')
         if fut not in self.futures:  # ignore old futures
             return
         for f in self.futures:  # ignore if there are some futures still running
@@ -338,7 +347,7 @@ class WdGeneratedValues(GeneratedValues):
                 return
         futures = self.futures
         self.futures = []
-        logging.warning(f'Futures all done, collecting')
+        logger().info(f'Futures all done, collecting')
         results = []
         for f in futures:
             result = f.result()

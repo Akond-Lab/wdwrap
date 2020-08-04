@@ -6,6 +6,7 @@ from PySide2.QtGui import QFont, QKeySequence
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter
 from PySide2.QtWidgets import (QAction, QApplication, QLabel, QDialog, QFileDialog, QMainWindow, QMessageBox)
 
+from wdwrap.bundle import Bundle
 from wdwrap.qtgui.icons import IconFactory
 from wdwrap.qtgui.project_widget import ProjectWidget
 from wdwrap.version import __version__
@@ -20,8 +21,8 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None, flags=None):
         super().__init__(parent)
 
-        self.central_widget = ProjectWidget(self)
-        self.setCentralWidget(self.central_widget)
+        self.project_widget = ProjectWidget(self)
+        self.setCentralWidget(self.project_widget)
 
         self.createActions()
         self.createToolBars()
@@ -62,10 +63,28 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready", 2000)
 
-    def open_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Image", ".", "Fits files (*.fits)")
+    def open_lcin(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open lc.in", ".", "lc.in (*)")
         if file_name:
-            self.open_fits(file_name)
+            try:
+                self.project_widget.project.load_bundle(file_name)
+            except (ValueError, Bundle.FileFormatNotSupportedError, Bundle.FileFormatMultipleSetsError) as e:
+                msg = QMessageBox()
+                msg.setWindowTitle('File loading failed')
+                msg.setText('Input file format error:')
+                msg.setInformativeText(str(e))
+                msg.exec_()
+
+    def save_lcin(self):
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save lc.in", ".", "lc.in (*)")
+        if file_name:
+            self.project_widget.project.save_bundle(file_name)
+
+    def add_lc(self):
+        pass
+
+    def add_rv(self):
+        pass
 
     def save(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -90,7 +109,7 @@ class MainWindow(QMainWindow):
         # if self.tedaCommandLine.ignoreSettings:
         #     return
         settings = QSettings()
-        self.central_widget.restore_session(settings)
+        self.project_widget.restore_session(settings)
         # settings.beginGroup("WCS")
         # self.wcsSexAct.setChecked(bool(settings.value("sexagesimal", True)))
         # self.wcsGridAct.setChecked(bool(settings.value("grid", False)))
@@ -100,7 +119,7 @@ class MainWindow(QMainWindow):
         # if self.tedaCommandLine.ignoreSettings:
         #     return
         settings = QSettings()
-        self.central_widget.save_session(settings)
+        self.project_widget.save_session(settings)
         # settings.beginGroup("WCS")
         # settings.setValue("sexagesimal", self.wcsSexAct.isChecked())
         # settings.setValue("grid", self.wcsGridAct.isChecked())
@@ -122,8 +141,15 @@ class MainWindow(QMainWindow):
     #     self.console.show(window=self, )
 
     def createActions(self):
-        self.openAct = QAction(IconFactory.getIcon('note_add'),
-                               "&Open", self, shortcut=QKeySequence.Open, statusTip="Open FITS file", triggered=self.open_dialog)
+        self.openlcinAct = QAction(IconFactory.getIcon('note_add'),
+                               "&Open lc.in", self, shortcut=QKeySequence.Open, statusTip="Open lc.in file", triggered=self.open_lcin)
+        self.savelcinAct = QAction(IconFactory.getIcon('note_add'),
+                               "&Save lc.in", self, shortcut=QKeySequence.Save, statusTip="Save lc.in file", triggered=self.save_lcin)
+        self.addLightCurveAct = QAction(IconFactory.getIcon('note_add'),
+                               "Add &LC", self, statusTip="Add light curve", triggered=self.add_lc)
+        self.addRvCurveAct = QAction(IconFactory.getIcon('note_add'),
+                               "Add &RV", self, statusTip="Add radial velocity curve", triggered=self.add_rv)
+
         self.quitAct = QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application", triggered=self.close)
         self.aboutAct = QAction("&About", self, statusTip="Show the application's About box", triggered=self.about)
         self.aboutQtAct = QAction("About &Qt", self, statusTip="Show the Qt library's About box", triggered=QApplication.instance().aboutQt)
@@ -139,15 +165,20 @@ class MainWindow(QMainWindow):
 
     def createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addAction(self.openAct)
+        self.fileMenu.addAction(self.openlcinAct)
+        self.fileMenu.addAction(self.savelcinAct)
 
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.quitAct)
 
+        self.curvesMenu = self.menuBar().addMenu("&Curves")
+        self.curvesMenu.addAction(self.addLightCurveAct)
+        self.curvesMenu.addAction(self.addRvCurveAct)
+
         self.viewMenu = self.menuBar().addMenu("&View")
         # self.viewMenu.addAction(self.qtConsoleAct)
         # self.viewMenu.addSeparator()
-        self.viewMenu.addAction(self.mainToolBar.toggleViewAction())
+        self.viewMenu.addAction(self.fileToolBar.toggleViewAction())
 
         self.menuBar().addSeparator()
 
@@ -156,8 +187,13 @@ class MainWindow(QMainWindow):
         self.helpMenu.addAction(self.aboutQtAct)
 
     def createToolBars(self):
-        self.mainToolBar = self.addToolBar("File Toolbar")
-        self.mainToolBar.addAction(self.openAct)
+        self.fileToolBar = self.addToolBar("File Toolbar")
+        self.fileToolBar.addAction(self.openlcinAct)
+        self.fileToolBar.addAction(self.savelcinAct)
+
+        self.curvesToolBar = self.addToolBar("File Toolbar")
+        self.curvesToolBar.addAction(self.addLightCurveAct)
+        self.curvesToolBar.addAction(self.addRvCurveAct)
 
 
     def createStatusBar(self):

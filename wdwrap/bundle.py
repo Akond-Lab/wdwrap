@@ -12,6 +12,12 @@ from .config import cfg
 
 
 class Bundle(ParameterSet):
+    class FileFormatError(Exception):
+        pass
+    class FileFormatMultipleSetsError(FileFormatError):
+        pass
+    class FileFormatNotSupportedError(FileFormatError):
+        pass
 
     def __init__(self, wdversion=None):
         super(Bundle, self).__init__()
@@ -28,6 +34,10 @@ class Bundle(ParameterSet):
         ret._veloc = self._veloc
         return ret
 
+    def populate_from(self, source):
+        super().populate_from(source)
+        self.wdversion = source.wdversion
+
 
     @classmethod
     def default_binary(cls, default_file=None, bundleno=0):
@@ -42,7 +52,10 @@ class Bundle(ParameterSet):
     def open(cls, filepath, bundleno=0):
         from .io import Reader_lcin
         reader = Reader_lcin(filepath)
-        return reader.bundles[bundleno]
+        bundle = reader.bundles[bundleno]
+        if len(bundle.lines) > 8:
+            raise cls.FileFormatNotSupportedError('Clouds and Spots not supported (yet)')
+        return bundle
 
     def __repr__(self):
         return '\n'.join([
@@ -51,14 +64,11 @@ class Bundle(ParameterSet):
         ])
 
     def __setitem__(self, k, v):
-        try:
+        if isinstance(v, (Parameter, list)):
+            super(Bundle, self).__setitem__(k, v)
+        else:
             el = self[k]
             el.val = v
-        except KeyError as e:
-            if isinstance(v, (Parameter, list)):
-                super(Bundle, self).__setitem__(k, v)
-            else:
-                raise e
 
     def __hash__(self):
         return hash(repr(self))

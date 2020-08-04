@@ -237,7 +237,7 @@ class Reader_lcin(Reader):
                 lnd[cls.name()] = cls(val)
             except (ValueError, TypeError) as e:
                 logging.exception(f'Cannot create instance of {cls.name()} initialized with {val}', exc_info=e)
-                raise e
+                raise ValueError(f'Cannot create instance of {cls.name()} initialized with {val}') from e
         return lnd
 
 class DataFrameReader(Reader):

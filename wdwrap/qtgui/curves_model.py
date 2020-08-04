@@ -8,6 +8,7 @@ from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
 from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.containerstree_model import ContainersTreeModel, ColumnsPreset
+from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
 
@@ -42,12 +43,17 @@ class CurveContainer(PropertiesAccessContainer):
         self.sig_fit_changed.emit(change.new)
 
 class CurveValuesContainer(PropertiesAccessContainer):
+    def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
+        super().__init__(name, data, parent, columns_mapper, read_only)
+        self.sig_curve_changed = SignalDelayedPermanentTimer('curve_change')
+        self.sig_curve_invalidated = SignalDelayedPermanentTimer('curve_invalidate')
+
     def get_plot(self):
         return self.parent().plot
 
     plot = Property(bool, get_plot)
-    sig_curve_changed = Signal(Container)
-    sig_curve_invalidated = Signal(Container)
+    # sig_curve_changed = Signal(Container)
+    # sig_curve_invalidated = signal(Container)
 
 
 class CurveObservedContainer(CurveValuesContainer):
