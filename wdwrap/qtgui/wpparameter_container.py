@@ -1,6 +1,8 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
 from PySide2.QtCore import Qt
+from PySide2.QtGui import QColor
+
 from wdwrap.param import Parameter, ParFlag
 from wdwrap.qtgui.container import Container
 
@@ -17,7 +19,12 @@ class WdParameterContainer(Container):
         ret = super().data(column, role)
         try:
             if ret is None:
-                if column == 'value' and role in [Qt.DisplayRole, Qt.EditRole]:
+                if role == Qt.BackgroundColorRole:
+                    if self.wdpar.flags & ParFlag.curvepriv:
+                        ret = QColor('gainsboro')
+                    elif self.wdpar.flags & ParFlag.curvedep:
+                        ret = QColor('aquamarine')
+                elif column == 'value' and role in [Qt.DisplayRole, Qt.EditRole]:
                     try:
                         ret = f'{self.wdpar}: {self.wdpar.help_val[self.wdpar.val]}'
                     except (AttributeError, LookupError, TypeError):
@@ -83,7 +90,7 @@ class WdParameterContainer(Container):
 
     def flags(self, column: str, flags):
         if column in ['value']:
-            if self.wdpar.flags & ParFlag.controlling:
+            if False and self.wdpar.flags & ParFlag.controlling:  # not for now
                 flags &= ~Qt.ItemIsEnabled
             else:
                 flags |= Qt.ItemIsEditable

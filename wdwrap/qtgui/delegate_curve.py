@@ -7,9 +7,10 @@ from PySide2.QtWidgets import QStyledItemDelegate, QComboBox, QFileDialog
 
 from wdwrap.jupyterui.curves import ObservedValues
 from wdwrap.qtgui.dataopendialog import DataOpenDialog
+from wdwrap.qtgui.delegate_parameters import ParametersTableDelegate
 
 
-class CurvesTableDelegate(QStyledItemDelegate):
+class CurvesTableDelegate(ParametersTableDelegate):
     def createEditor(self, parent: PySide2.QtWidgets.QWidget, option: PySide2.QtWidgets.QStyleOptionViewItem,
                      index: QModelIndex) -> PySide2.QtWidgets.QWidget:
         model = index.model()

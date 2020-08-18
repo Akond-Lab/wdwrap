@@ -26,11 +26,13 @@ from ..parameters import ParameterSet
 """
 Module contains three families of classes:
    * `CurveTransformer` : transformers od dataframe (binning/resampling)
-   * `CurveValues` : represents Dataframe with indempendent variable and one or more values
+   * `CurveValues` : represents Dataframe with independent variable and one or more values
    * `Curve` : The curve with metadata, observed CurveValues, model-generated CurveValues
 """
 
 _logger = None
+
+
 def logger():
     global _logger
     if _logger is None:
@@ -39,9 +41,9 @@ def logger():
     return _logger
 
 
-
 class CurveTransformer(HasTraits):
-    """Transformes one dataframe into another"""
+    """Transformers one dataframe into another"""
+
     def __init__(self, *args, col_independent='ph', col_values=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.col_independent = col_independent
@@ -49,6 +51,7 @@ class CurveTransformer(HasTraits):
 
     def transform(self, df):
         return df
+
 
 class CurvePhaser(CurveTransformer):
     """Adds/Updates `ph` (phase) column """
@@ -67,7 +70,7 @@ class CurvePhaser(CurveTransformer):
             ph = ((df[self.col_hjd] - self.hjd0) / self.period + self.delta) % 1.0
         except KeyError:  # no hjd column, do not overwrite 'ph'
             return df
-        except TypeError:  #  period is None
+        except TypeError:  # period is None
             mi = df[self.col_hjd].min()
             ma = df[self.col_hjd].max()
             rng = ma - mi
@@ -80,7 +83,7 @@ class CurvePhaser(CurveTransformer):
 class CurveResampler(CurveTransformer):
     """Resamples original dataframe into `k` bins, from min to max
 
-    `k == 0` maens: no transformation.
+    `k == 0` means: no transformation.
     `min,max == None` means: take `min()` or `max()` from source dataframe
     """
     k = Int(min=5, default_value=20)
@@ -105,6 +108,7 @@ class CurveResampler(CurveTransformer):
             return ret
         else:
             return super().transform(df)
+
 
 # ############ CURVES as single set of points ####################### #
 
@@ -147,6 +151,7 @@ class CurveValues(HasTraits):
                 return np.nan
             else:
                 return np.full_like(x, np.nan)
+
         ret = {col: nans for col in self.dep_columns if col in self.df.columns}
         if self.df is not None:
             for c in self.dep_columns & set(self.df.columns):
@@ -156,7 +161,7 @@ class CurveValues(HasTraits):
                         kwargs['extrapolate'] = 'periodic'
                         try:
                             ret[c] = CubicSpline(self.df[self.indep_column], self.df[c], **kwargs)
-                        except ValueError: # to little data rows
+                        except ValueError:  # to little data rows
                             ret[c] = np.frompyfunc(lambda x: np.nan, 1, 1)  # returns nans of shape of x
                 else:
                     logger().error(f'Unknown interpolation method "{self.approx_method}"')
@@ -183,6 +188,7 @@ class CurveValues(HasTraits):
 
     def empty(self):
         return self.n == 0
+
 
 class ConvertedValues(CurveValues):
     """Keeps additional 'original' dataframe which is converted somehow into
@@ -250,6 +256,7 @@ class ObservedValues(ConvertedValues):
     def resampler(self) -> CurveResampler:
         return self.transformers['resampler']
 
+
 class GeneratedValues(CurveValues):
     class STATUS:
         Canceling = 3
@@ -288,7 +295,6 @@ class GeneratedValues(CurveValues):
         pass
 
 
-
 class WdGeneratedValues(GeneratedValues):
     segment_dividers_version = Int()
 
@@ -299,20 +305,22 @@ class WdGeneratedValues(GeneratedValues):
         self.bundle = bundle
         self.bundle.observe(lambda change: self.on_bundle_value_change(change))
         self.parameters = ParameterSet()
+        self.parameters.update_filtered(self.bundle, ParameterSet.filter_curve)
         n = cfg().getint('curves', 'default-segments')
         assert 0 < n <= 20
-        self.segment_dividers = list(np.linspace(0, 1, n+1))
+        self.segment_dividers = list(np.linspace(0, 1, n + 1))
         self.segment_data = [{'PHIN': bundle['PHIN'].val} for _ in range(n)]  # n identical (but not the same) dicts
         self.futures: List[Future] = []
+        self.observe(lambda change: self.invalidate(), 'segment_dividers_version')
 
     def generate(self, wait=False, timeout=None):
         self.cancel()
-        bundle = self.bundle.copy()
-        bundle.update(self.parameters)
+        bundle = self.bundle.clone()
+        bundle.update_parameters(self.parameters)
         bundle['MPAGE'] = MPAGE.VELOC if self.is_rv else MPAGE.LIGHT
         running = False
         for s in range(self.segments_count()):
-            b = bundle.copy()
+            b = bundle.clone()
             lo, hi = self.segment_range(s)
             b['PHSTRT'] = lo
             b['PHSTOP'] = hi
@@ -334,9 +342,8 @@ class WdGeneratedValues(GeneratedValues):
         if self.calculation_semaphore.acquire(timeout=timeout):
             self._release_semaphore()
             return True
-        else: #  timeout
+        else:  # timeout
             return False
-
 
     def on_segment_calculated(self, fut):
         logger().info(f'Future done: {fut}')
@@ -392,7 +399,7 @@ class WdGeneratedValues(GeneratedValues):
 
     def segment_at(self, pos: float) -> int:
         for s in range(self.segments_count()):
-            if self.segment_dividers[s+1] > pos:
+            if self.segment_dividers[s + 1] > pos:
                 return s
         if math.isclose(pos, 1.0):
             return self.segments_count() - 1
@@ -408,8 +415,8 @@ class WdGeneratedValues(GeneratedValues):
             else:
                 divider = lo + (hi - lo) / 2.
         data = copy.copy(self.segment_data[segment])
-        self.segment_dividers.insert(segment+1, divider)
-        self.segment_data.insert(segment+1, data)
+        self.segment_dividers.insert(segment + 1, divider)
+        self.segment_data.insert(segment + 1, data)
         self.segment_dividers_version += 1
         return divider
 
@@ -422,11 +429,14 @@ class WdGeneratedValues(GeneratedValues):
         raise NotImplementedError()
 
     def segment_range(self, segment: int) -> (float, float):
-        return self.segment_dividers[segment], self.segment_dividers[segment+1]
+        return self.segment_dividers[segment], self.segment_dividers[segment + 1]
 
     def segment_set_range(self, segment: int, from_value: Optional[float] = None, to_value: Optional[float] = None):
         modified = False
-        if from_value is not None and segment > 0 and not math.isclose(self.segment_dividers[segment], from_value):
+        if from_value is not None \
+                and segment > 0 \
+                and not math.isclose(self.segment_dividers[segment], from_value)\
+                and 0.0 <= from_value < 1.0:
             self.segment_dividers[segment] = from_value
             modified = True
             for s in range(segment - 1, 0, -1):
@@ -434,16 +444,41 @@ class WdGeneratedValues(GeneratedValues):
                     self.segment_dividers[s] = from_value
                 else:
                     break
-        if to_value is not None and segment < len(self.segment_dividers) - 2 and not math.isclose(
-                self.segment_dividers[segment+1], to_value):
-            self.segment_dividers[segment+1] = to_value
+            for s in range(segment + 1, len(self.segment_dividers) - 1):
+                if self.segment_dividers[s] < from_value:
+                    self.segment_dividers[s] = from_value
+                else:
+                    break
+        if to_value is not None \
+                and segment < len(self.segment_dividers) - 2 \
+                and not math.isclose(self.segment_dividers[segment + 1], to_value)\
+                and 0.0 < to_value <= 1.0:
+            self.segment_dividers[segment + 1] = to_value
             modified = True
+            for s in range(segment, 0, -1):
+                if self.segment_dividers[s] > to_value:
+                    self.segment_dividers[s] = to_value
+                else:
+                    break
             for s in range(segment + 2, len(self.segment_dividers) - 1):
                 if self.segment_dividers[s] < to_value:
                     self.segment_dividers[s] = to_value
                 else:
                     break
         if modified:
+            self.segment_dividers_version += 1
+
+    def segment_get_data(self, segment: int, key: str):
+        return self.segment_data[segment][key]
+
+    def segment_update_data(self, segment: int, data: dict):
+        newdata = self.segment_data[segment].copy()
+        newdata.update(data)
+        self.segment_set_data(segment, newdata)
+
+    def segment_set_data(self, segment: int, data: dict):
+        if data != self.segment_data[segment]:
+            self.segment_data[segment] = data
             self.segment_dividers_version += 1
 
     def segment_is_empty(self, segment: int) -> bool:
@@ -482,7 +517,7 @@ class Curve(HasTraits):
 
 class WdCurve(Curve):
     wdparams = Instance(WdParamTraitCollection,
-                        kw={'flags_any': ParFlag.curvedep})
+                        kw={'flags_any': ParFlag.curvedep | ParFlag.curvepriv})
     plot = Bool(default_value=True)
     fit = Bool(default_value=False)
     color = Unicode('red')

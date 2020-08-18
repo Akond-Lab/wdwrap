@@ -2,7 +2,7 @@
 
 from wdwrap.bundle import Bundle
 from wdwrap.qtgui.container import Container
-from wdwrap.qtgui.containerstree_model import ContainersTreeModel, ColumnsPreset
+from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
 class BundleModel(ContainersTreeModel):

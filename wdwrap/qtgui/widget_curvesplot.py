@@ -14,7 +14,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from wdwrap.jupyterui.curves import WdCurve, WdGeneratedValues, ObservedValues
-from wdwrap.qtgui.curves_model import CurvesModel, CurveValuesContainer, CurveContainer
+from wdwrap.qtgui.model_curves import CurvesModel, CurveValuesContainer, CurveContainer
 
 class NavigationToolbar (NavigationToolbar2QT):
     toolitems = [t for t in NavigationToolbar2QT.toolitems

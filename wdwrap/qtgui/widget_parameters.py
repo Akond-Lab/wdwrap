@@ -5,7 +5,7 @@ import PySide2
 from PySide2.QtWidgets import QSplitter, QFrame, QHBoxLayout, QVBoxLayout
 from wdwrap.bundle import Bundle
 from wdwrap.qtgui.project import Project
-from wdwrap.qtgui.wdvalue_widget import WdValueWidget
+from wdwrap.qtgui.widget_wdvalue import WdValueWidget
 
 
 class ParametersWidget(QFrame):

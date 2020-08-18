@@ -7,7 +7,7 @@ from wdwrap.bundle import Bundle
 from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
 from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
-from wdwrap.qtgui.containerstree_model import ContainersTreeModel, ColumnsPreset
+from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
@@ -55,6 +55,9 @@ class CurveValuesContainer(PropertiesAccessContainer):
     # sig_curve_changed = Signal(Container)
     # sig_curve_invalidated = signal(Container)
 
+    def get_df(self):
+        return self.get_content().df
+
 
 class CurveObservedContainer(CurveValuesContainer):
     def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
@@ -78,6 +81,11 @@ class CurveGeneratedContainer(CurveValuesContainer):
         super().__init__(name, data, parent, columns_mapper, read_only)
         data.observe(lambda change: self.on_curve_status_change(change), 'status')
 
+    def add_children_for_private_wd_parameters(self):
+        parameters = self.content.parameters
+        for key, item in parameters.items():
+            WdParameterContainer(key, item, parent=self)
+
     def on_curve_status_change(self, change):
         logger().info('Curve {} status {} -> {}'.format(
             self,
@@ -96,7 +104,7 @@ class CurvesModel(ContainersTreeModel):
     def __init__(self, curves: Optional[List[WdCurve]] = None, parent=None):
         self.curves = curves
         super().__init__(parent)
-        self.columns = ColumnsPreset(['name', 'data'])
+        self.columns = ColumnsPreset(['name', 'value'])
 
     def children_iter_filter(self, child: Container, **kwargs) -> bool:
         if kwargs.get('curves', False) and not isinstance(child, CurveContainer):
@@ -119,6 +127,7 @@ class CurvesModel(ContainersTreeModel):
             ParentColumnContainer('plot', c)
             ParentColumnContainer('fit', c)
             g = CurveGeneratedContainer('synthetic', l.gen_values, c)
+            g.add_children_for_private_wd_parameters()
             o = CurveObservedContainer('observed', l.obs_values, c, read_only=False)
             ParentColumnContainer('file', o, parents_column='filename')
             ParentColumnContainer('bins', o)

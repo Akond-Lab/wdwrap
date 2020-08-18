@@ -19,7 +19,7 @@ class TestWD(unittest.TestCase):
     def test_copy(self):
         import wdwrap
         b1 = wdwrap.default_binary()
-        b2 = b1.copy()
+        b2 = b1.clone()
         self.assertGreater(len(b2.lines), 4)
         # after default copy control parameters should remain untached.
 

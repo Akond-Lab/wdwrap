@@ -27,8 +27,8 @@ class Bundle(ParameterSet):
         self._light = None
         self._veloc = None
 
-    def copy(self):
-        ret = super().copy()
+    def clone(self, deap_copy_condition=ParameterSet.filter_every):
+        ret = super().clone(deap_copy_condition=deap_copy_condition)
         ret.wdversion = self.wdversion
         ret._light = self._light
         ret._veloc = self._veloc
@@ -62,13 +62,6 @@ class Bundle(ParameterSet):
             ' '.join([repr(v) for v in l.values()])
             for l in self.lines
         ])
-
-    def __setitem__(self, k, v):
-        if isinstance(v, (Parameter, list)):
-            super(Bundle, self).__setitem__(k, v)
-        else:
-            el = self[k]
-            el.val = v
 
     def __hash__(self):
         return hash(repr(self))

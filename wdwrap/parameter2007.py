@@ -20,7 +20,7 @@ class MPAGE(IntParameter):
     SPECT = 3
     RELAT = 4
     IMAGE = 5
-    flags = ParFlag.outputspec | ParFlag.controlling | ParFlag.curvepriv | ParFlag.lc
+    flags = ParFlag.outputspec | ParFlag.controlling | ParFlag.curvepriv  | ParFlag.lc
 
 
 class NREF(IntParameter):

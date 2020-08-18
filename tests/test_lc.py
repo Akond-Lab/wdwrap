@@ -43,7 +43,7 @@ class TestWD(unittest.TestCase):
         w = Writer_lcin(sys.stdout, bs)
         w.write()
 
-    @unittest.skip('Not implelented')
+    # @unittest.skip('Not implelented')
     def test_lc_read_write_read(self):
         try:
             from StringIO import StringIO  # Python 2
@@ -55,10 +55,6 @@ class TestWD(unittest.TestCase):
         b1 = wdwrap.default_binary()
         w = Writer_lcin(buf, [b1])
         w.write()
-        print (b)
-        b.lc(generate='light', filter='B')
-        plot(b.light)
-        bufs = buf.getvalue()
         buf.seek(0)
         r = Reader_lcin(buf)
         b2 = r.bundles[0]

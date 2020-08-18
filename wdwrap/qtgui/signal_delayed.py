@@ -34,7 +34,7 @@ class SignalDelayedPermanentTimer:
             super().timerEvent(event)
             self.timer_handler(event)
 
-    def __init__(self, name: Optional[str] = None, ping: int = 0, enable: bool = True) -> None:
+    def __init__(self, name: Optional[str] = None, ping: int = 200, enable: bool = True) -> None:
         super().__init__()
         self.scheduled = False
         self.ping = ping
@@ -48,14 +48,13 @@ class SignalDelayedPermanentTimer:
             self.enable()
 
     def enable(self, enable: bool = True):
+        for tid in self._timerts_ids:
+            self.signal.killTimer(tid)  # idle timer
+        self._timerts_ids = []
         if enable:
-            self._timerts_ids.append(self.signal.startTimer(0))  # idle timer
-            if self.ping != 0:
-                self._timerts_ids.append(self.signal.startTimer(self.ping))  # recurring timer
-        else:
-            for tid in self._timerts_ids:
-                self.signal.killTimer(tid)  # idle timer
-            self._timerts_ids = []
+            # self._timerts_ids.append(self.signal.startTimer(0))  # idle timer
+            # if self.ping != 0:
+            self._timerts_ids.append(self.signal.startTimer(self.ping))  # recurring timer
 
     def connect(self, *args, **kwargs):
         logger().info(f'Signal {self.name} connecting')
@@ -77,6 +76,7 @@ class SignalDelayedPermanentTimer:
             logger().info(f'Signal {self.name} scheduling')
         self.scheduled = False
         self.arg = arg
+        # TODO: try/except on-shot-timer to reduce waiting time, if fails (not qt thread) ping timer do the job
         self.scheduled = True
 
     @Slot()

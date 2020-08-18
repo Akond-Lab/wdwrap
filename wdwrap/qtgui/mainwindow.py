@@ -4,15 +4,25 @@ import PySide2
 from PySide2.QtCore import QFile, Qt, QTextStream, QSettings
 from PySide2.QtGui import QFont, QKeySequence
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter
-from PySide2.QtWidgets import (QAction, QApplication, QLabel, QDialog, QFileDialog, QMainWindow, QMessageBox)
+from PySide2.QtWidgets import (QAction, QApplication, QLabel, QDialog, QFileDialog, QMainWindow, QMessageBox,
+                               QDockWidget)
 
 from wdwrap.bundle import Bundle
 from wdwrap.qtgui.icons import IconFactory
-from wdwrap.qtgui.project_widget import ProjectWidget
+from wdwrap.qtgui.widget_info import InfoPanelWidget
+from wdwrap.qtgui.widget_project import ProjectWidget
 from wdwrap.version import __version__
 
 
 # from . import console
+
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('qtui')
+    return _logger
 
 
 # noinspection PyPep8Naming
@@ -27,8 +37,8 @@ class MainWindow(QMainWindow):
         self.createActions()
         self.createToolBars()
         self.createStatusBar()
-        self.createDockWindows()
         self.createMenus()
+        self.createDockWindows()
 
         self.setWindowTitle("WD Wrapper")
 
@@ -68,7 +78,9 @@ class MainWindow(QMainWindow):
         if file_name:
             try:
                 self.project_widget.project.load_bundle(file_name)
+                logger().info(f'lc.in file opened, path: {file_name}')
             except (ValueError, Bundle.FileFormatNotSupportedError, Bundle.FileFormatMultipleSetsError) as e:
+                logger().exception(f'lc.in file f{file_name} loading failed. Input file format error', exc_info=e)
                 msg = QMessageBox()
                 msg.setWindowTitle('File loading failed')
                 msg.setText('Input file format error:')
@@ -76,9 +88,10 @@ class MainWindow(QMainWindow):
                 msg.exec_()
 
     def save_lcin(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save lc.in", ".", "lc.in (*)")
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save lc.in", "lc.in", "lc.in (*)")
         if file_name:
             self.project_widget.project.save_bundle(file_name)
+            logger().info(f'lc.in file saved, path: {file_name}')
 
     def add_lc(self):
         pass
@@ -179,6 +192,7 @@ class MainWindow(QMainWindow):
         # self.viewMenu.addAction(self.qtConsoleAct)
         # self.viewMenu.addSeparator()
         self.viewMenu.addAction(self.fileToolBar.toggleViewAction())
+        self.viewMenu.addAction(self.curvesToolBar.toggleViewAction())
 
         self.menuBar().addSeparator()
 
@@ -188,10 +202,12 @@ class MainWindow(QMainWindow):
 
     def createToolBars(self):
         self.fileToolBar = self.addToolBar("File Toolbar")
+        self.fileToolBar.setObjectName("FILE TOOLBAR")
         self.fileToolBar.addAction(self.openlcinAct)
         self.fileToolBar.addAction(self.savelcinAct)
 
-        self.curvesToolBar = self.addToolBar("File Toolbar")
+        self.curvesToolBar = self.addToolBar("Curves Toolbar")
+        self.curvesToolBar.setObjectName("CURVES TOOLBAR")
         self.curvesToolBar.addAction(self.addLightCurveAct)
         self.curvesToolBar.addAction(self.addRvCurveAct)
 
@@ -200,7 +216,18 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def createDockWindows(self):
-        pass
+        # Info
+        dock = QDockWidget('Details', self)
+        dock.setObjectName("DETAILS")
+        dock.setAllowedAreas(Qt.AllDockWidgetAreas)
+        self.detailsWidget = InfoPanelWidget(self)
+        self.project_widget.curvesCurrentItemChanged.connect(self.detailsWidget.setItem)
+        dock.setWidget(self.detailsWidget)
+        self.addDockWidget(Qt.RightDockWidgetArea, dock)
+        self.viewMenu.addAction(dock.toggleViewAction())
+        # dock.setFloating(True)
+        # dock.hide()
+
         # Scale
         # dock = QDockWidget("Dynamic Scale", self)
         # dock.setObjectName("SCALE")

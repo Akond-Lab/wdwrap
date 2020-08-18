@@ -5,57 +5,16 @@ from functools import partial
 import pandas as pd
 
 import PySide2
-from PySide2.QtCore import QAbstractTableModel, Qt, QStringListModel, Signal, Slot
+from PySide2.QtCore import Signal, Slot
 from PySide2.QtGui import QIntValidator
-from PySide2.QtWidgets import QDialog, QFormLayout, QLabel, QPushButton, QTableView, QFileDialog, QDialogButtonBox, \
-    QVBoxLayout, QGroupBox, QListView, QLineEdit, QTextEdit, QHBoxLayout
+from PySide2.QtWidgets import QDialog, QFormLayout, QPushButton, QTableView, QFileDialog, QDialogButtonBox, \
+    QVBoxLayout, QGroupBox, QLineEdit, QTextEdit, QHBoxLayout
 
-from wdwrap.io import FixedTableReader, DataFrameReader
-
-
-class PandasDataFrameModel(QAbstractTableModel):
-    def __init__(self, df, parent: typing.Optional[PySide2.QtCore.QObject] = None):
-        super().__init__(parent)
-        self.df = df
-
-    def set_df(self, df):
-        self.beginResetModel()
-        self.df = df
-        self.endResetModel()
-
-    def set_columns(self, cols):
-        # extend to size of dataframe
-        cols.extend([''] * (self.columnCount() - len(cols)))  # enlarge list to at lest n elemenets
-        # shrink to size of dataframe
-        cols = cols[ : self.columnCount()]
-        self.df.columns = cols
-        self.headerDataChanged.emit(Qt.Horizontal, 0, len(cols))
+from wdwrap.io import DataFrameReader
+from wdwrap.qtgui.model_pandas import PandasDataFrameModel
 
 
-    def headerData(self, section: int, orientation: PySide2.QtCore.Qt.Orientation, role: int = ...) -> typing.Any:
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.df.columns[section]
-        else:
-            return super().headerData(section, orientation, role)
-
-    def data(self, index: PySide2.QtCore.QModelIndex, role: int = ...) -> typing.Any:
-        if role == Qt.DisplayRole:
-            row, col = index.row(), index.column()
-            ret = str(self.df.iloc[row, col])
-        else:
-            ret = None
-        return ret
-
-    def rowCount(self, parent: PySide2.QtCore.QModelIndex = ...) -> int:
-        return len(self.df)
-
-    def columnCount(self, parent: PySide2.QtCore.QModelIndex = ...) -> int:
-        return self.df.shape[1]
-
-
-
-
-class ColumnsGrupBox(QGroupBox):
+class ColumnsGroupBox(QGroupBox):
 
     columns_changes = Signal()
 
@@ -127,9 +86,6 @@ class DataOpenDialog(QDialog):
         self.filename.setMinimumWidth(150)
         self.loadbutton = QPushButton("Load...")
         self.loadbutton.clicked.connect(self.file_dialog)
-        self.tablemodel = PandasDataFrameModel(df=pd.DataFrame())
-        self.tableview = QTableView()
-        self.tableview.setModel(self.tablemodel)
 
         layout_left = QVBoxLayout()
         filebox = QGroupBox('File')
@@ -138,7 +94,7 @@ class DataOpenDialog(QDialog):
         layoutf.addRow('', self.loadbutton)
         filebox.setLayout(layoutf)
         layout_left.addWidget(filebox)
-        self.columnsbox = ColumnsGrupBox('Columns order', expected_columns=expected_columns, all_columns=all_columns)
+        self.columnsbox = ColumnsGroupBox('Columns order', expected_columns=expected_columns, all_columns=all_columns)
         self.columnsbox.columns_changes.connect(self.on_columns_order_changed)
         layout_left.addWidget(self.columnsbox)
         layout_left.addStretch()
@@ -155,6 +111,9 @@ class DataOpenDialog(QDialog):
         previewbox.setLayout(previewboxlayout)
         layout_right.addWidget(previewbox)
 
+        self.tablemodel = PandasDataFrameModel(df=pd.DataFrame())
+        self.tableview = QTableView()
+        self.tableview.setModel(self.tablemodel)
         tablebox = QGroupBox('Data preview')
         tableboxlayout = QVBoxLayout()
         self.tableview.setMinimumWidth(500)

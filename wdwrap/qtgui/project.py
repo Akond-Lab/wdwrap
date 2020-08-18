@@ -4,9 +4,10 @@ import typing
 import PySide2
 from PySide2.QtCore import QObject
 from wdwrap.bundle import Bundle
+from wdwrap.io import Writer_lcin
 from wdwrap.jupyterui.curves import LightCurve, VelocCurve
-from wdwrap.qtgui.bundle_model import BundleModel
-from wdwrap.qtgui.curves_model import CurvesModel
+from wdwrap.qtgui.model_bundle import BundleModel
+from wdwrap.qtgui.model_curves import CurvesModel
 
 
 class Project(QObject):
@@ -18,12 +19,13 @@ class Project(QObject):
         self.parameters_model = BundleModel(self.bundle)
         self.curves_model = CurvesModel([
             LightCurve(bundle=self.bundle),
-            VelocCurve(bundle=self.bundle)
+            VelocCurve(bundle=self.bundle),  # TODO: Initial curves
         ])
 
     def load_bundle(self, filename):
-        newbundle = Bundle.open(filename)
-        self.bundle.populate_from(newbundle)
+        new_bundle = Bundle.open(filename)
+        self.bundle.populate_from(new_bundle)
 
     def save_bundle(self, filename):
-        raise NotImplementedError('Implement this!') #TODO
+        writer = Writer_lcin(filename, self.bundle)
+        writer.write()

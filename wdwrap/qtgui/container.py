@@ -119,7 +119,7 @@ class ParentColumnContainer(Container):
         to parent's `ParentColumnContainer.parents_column`
     """
 
-    def __init__(self, name, parent=None, parents_column=None, data_column='data'):
+    def __init__(self, name, parent=None, parents_column=None, data_column='value'):
         super().__init__(name, data=None, parent=parent)
         if parents_column is None:
             parents_column = name
