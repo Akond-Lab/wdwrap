@@ -99,6 +99,19 @@ class ProjectWidget(QSplitter):
 
         self.curvesCurrentItemChanged.emit(curr_item)
 
+    @Slot()
+    def add_lc(self):
+        self.project.add_lc()
+
+    @Slot()
+    def add_rv(self):
+        self.project.add_rv()
+
+    @Slot()
+    def del_curve(self):
+        self.project
+
+
 
 
 

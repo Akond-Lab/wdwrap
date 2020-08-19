@@ -4,7 +4,7 @@ from collections import OrderedDict
 from typing import Mapping, Any
 
 import numpy as np
-from PySide2.QtCore import Slot, Qt, QSize
+from PySide2.QtCore import Slot, Qt, QSize, QModelIndex
 from PySide2.QtWidgets import QToolBar
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
@@ -15,6 +15,15 @@ from matplotlib.lines import Line2D
 
 from wdwrap.jupyterui.curves import WdCurve, WdGeneratedValues, ObservedValues
 from wdwrap.qtgui.model_curves import CurvesModel, CurveValuesContainer, CurveContainer
+
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('curvplot')
+    return _logger
+
 
 class NavigationToolbar (NavigationToolbar2QT):
     toolitems = [t for t in NavigationToolbar2QT.toolitems
@@ -102,13 +111,40 @@ class CurvesPlotWidget(FigureCanvas):
 class WdCurvesPlotWidget(CurvesPlotWidget):
     def __init__(self, model: CurvesModel):
         self.curves_model = model
+        self.curves_model.rowsRemoved.connect(self._on_row_removed)
+        self.curves_model.rowsInserted.connect(self._on_row_inserted)
+        self.curves_model.modelReset.connect(self._on_model_reset)
         super().__init__()
         gs = self.figure.add_gridspec(3, 1)
         self.ax: Axes = self.figure.add_subplot(gs[0:2, 0])
-        self.ax_resid = self.figure.add_subplot(gs[2, 0], sharex=self.ax)
+        self.ax_resid: Axes = self.figure.add_subplot(gs[2, 0], sharex=self.ax)
+        self._prepare_axis()
         self.figure.subplots_adjust(hspace=0.000)
         self.plot_curves()
 
+
+    @Slot(QModelIndex, int, int)
+    def _on_row_removed(self, parent_idx, first, last):
+        logger().info(f'model curves removed: {first}:{last}')
+
+    @Slot(QModelIndex, int, int)
+    def _on_row_inserted(self, parent_idx, first, last):
+        logger().info(f'model curves inserted: {first}:{last}')
+
+    @Slot()
+    def _on_model_reset(self):
+        logger().info(f'model curves have been reset')
+        self.refresh_from_model()
+
+    def refresh_from_model(self):
+        """Forgets everything, reads model and plots its curves"""
+        self.clear_axies()
+        self.plot_curves()
+
+    def clear_axies(self):
+        self.ax.clear()
+        self.ax_resid.clear()
+        self._prepare_axis()
 
     def curves_filter(self, curve: WdCurve, **kwargs) -> bool:
         for_plotting = kwargs.get('plot', False)
@@ -139,10 +175,15 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.ax.set_xlim(-0.1, 1.1, auto=False)
         self.draw_idle()
 
+    def _prepare_axis(self):
+        pass
+
 
 class LightPlotWidget(WdCurvesPlotWidget):
     def __init__(self, model: CurvesModel):
         super().__init__(model)
+
+    def _prepare_axis(self):
         self.ax.invert_yaxis()
         self.ax_resid.invert_yaxis()
 

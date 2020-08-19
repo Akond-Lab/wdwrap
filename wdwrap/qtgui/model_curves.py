@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, List
 
-from PySide2.QtCore import Signal, Property
+from PySide2.QtCore import Signal, Property, QObject
 from wdwrap.bundle import Bundle
 from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
 from wdwrap.lazylogger import logger
@@ -41,6 +41,9 @@ class CurveContainer(PropertiesAccessContainer):
 
     def on_fit_changed(self, change):
         self.sig_fit_changed.emit(change.new)
+
+    def is_rv(self) -> bool:
+        return self.content.is_rv()
 
 class CurveValuesContainer(PropertiesAccessContainer):
     def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
@@ -123,13 +126,64 @@ class CurvesModel(ContainersTreeModel):
                 name += f' {n} {l.obs_values.filename}'
             except AttributeError:
                 name += f' {n}'
-            c = CurveContainer(name, l, self.display_root)
-            ParentColumnContainer('plot', c)
-            ParentColumnContainer('fit', c)
-            g = CurveGeneratedContainer('synthetic', l.gen_values, c)
-            g.add_children_for_private_wd_parameters()
-            o = CurveObservedContainer('observed', l.obs_values, c, read_only=False)
-            ParentColumnContainer('file', o, parents_column='filename')
-            ParentColumnContainer('bins', o)
-            ParentColumnContainer('min', o)
-            ParentColumnContainer('max', o)
+            self._add_curve(l, name=name)
+        self.sort_curves()
+
+    def add_curve(self, curve: WdCurve, name: str = None):
+        """Adds curve"""
+        self.beginResetModel()
+
+        if name is None:
+            if curve.is_rv():
+                name = 'New RV'
+            else:
+                name = 'New Light'
+        self._add_curve(curve, name)
+        self.sort_curves()
+        self.endResetModel()
+
+    def _add_curve(self, curve: WdCurve, name: str):
+        """Adds curve on the end of list, use sort_curves to restore proper order"""
+        c = CurveContainer(name, curve, self.display_root)
+        ParentColumnContainer('plot', c)
+        ParentColumnContainer('fit', c)
+        g = CurveGeneratedContainer('synthetic', curve.gen_values, c)
+        g.add_children_for_private_wd_parameters()
+        o = CurveObservedContainer('observed', curve.obs_values, c, read_only=False)
+        ParentColumnContainer('file', o, parents_column='filename')
+        ParentColumnContainer('bins', o)
+        ParentColumnContainer('min', o)
+        ParentColumnContainer('max', o)
+
+    def sort_curves(self,
+                    comp_function=lambda curve1, curve2: -1 if curve1.is_rv() and not curve2.is_rv() else
+                                                          1 if not curve1.is_rv() and curve2.is_rv() else
+                                                          0):
+        """Sort curves list, default comparison just puts light curves overs RV curves"""
+        to_sort = self.display_root.children()
+        sorted = self._merge_sort_curves(to_sort, comp_function)
+        ob = QObject()
+        for o in sorted:
+            o.setParent(ob)
+        for o in sorted:
+            o.setParent(self.display_root)
+
+    def _merge_sort_curves(self, curves_list, comp_function):
+        if len(curves_list) < 2:
+            return curves_list
+        divide_on = len(curves_list) // 2
+        l1 = self._merge_sort_curves(curves_list[:divide_on], comp_function)
+        l2 = self._merge_sort_curves(curves_list[divide_on:], comp_function)
+        n1 = 0
+        n2 = 0
+        merged = []
+        while n1 < len(l1) and n2 < len(l2):
+            if comp_function(l1[n1], l2[n2]) >= 0:
+                merged.append(l1[n1])
+                n1 += 1
+            else:
+                merged.append(l2[n2])
+                n2 += 1
+        return merged + l1[n1:] + l2[n2:]
+
+

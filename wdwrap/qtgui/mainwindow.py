@@ -1,14 +1,16 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
 import PySide2
-from PySide2.QtCore import QFile, Qt, QTextStream, QSettings
+from PySide2.QtCore import QFile, Qt, QTextStream, QSettings, Slot
 from PySide2.QtGui import QFont, QKeySequence
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter
 from PySide2.QtWidgets import (QAction, QApplication, QLabel, QDialog, QFileDialog, QMainWindow, QMessageBox,
                                QDockWidget)
 
 from wdwrap.bundle import Bundle
+from wdwrap.qtgui.container import ParentColumnContainer, Container
 from wdwrap.qtgui.icons import IconFactory
+from wdwrap.qtgui.model_curves import CurveContainer
 from wdwrap.qtgui.widget_info import InfoPanelWidget
 from wdwrap.qtgui.widget_project import ProjectWidget
 from wdwrap.version import __version__
@@ -51,6 +53,12 @@ class MainWindow(QMainWindow):
         # except FileNotFoundError:
         #     print('Can not open last file')
 
+    @Slot(Container)
+    def currentItemChanged(self, item: Container):
+        if isinstance(item, ParentColumnContainer):
+            item = item.parent()
+        self.delCurveAct.setEnabled(isinstance(item, CurveContainer))
+
     def closeEvent(self, event: PySide2.QtGui.QCloseEvent):
         self.writeAppState()
         self.writeWindowSettings()
@@ -73,6 +81,7 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready", 2000)
 
+    @Slot()
     def open_lcin(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open lc.in", ".", "lc.in (*)")
         if file_name:
@@ -87,17 +96,12 @@ class MainWindow(QMainWindow):
                 msg.setInformativeText(str(e))
                 msg.exec_()
 
+    @Slot()
     def save_lcin(self):
         file_name, _ = QFileDialog.getSaveFileName(self, "Save lc.in", "lc.in", "lc.in (*)")
         if file_name:
             self.project_widget.project.save_bundle(file_name)
             logger().info(f'lc.in file saved, path: {file_name}')
-
-    def add_lc(self):
-        pass
-
-    def add_rv(self):
-        pass
 
     def save(self):
         filename, _ = QFileDialog.getSaveFileName(self,
@@ -157,11 +161,16 @@ class MainWindow(QMainWindow):
         self.openlcinAct = QAction(IconFactory.getIcon('note_add'),
                                "&Open lc.in", self, shortcut=QKeySequence.Open, statusTip="Open lc.in file", triggered=self.open_lcin)
         self.savelcinAct = QAction(IconFactory.getIcon('note_add'),
-                               "&Save lc.in", self, shortcut=QKeySequence.Save, statusTip="Save lc.in file", triggered=self.save_lcin)
+                               "&Save lc.in as", self, shortcut=QKeySequence.Save, statusTip="Save lc.in file", triggered=self.save_lcin)
         self.addLightCurveAct = QAction(IconFactory.getIcon('note_add'),
-                               "Add &LC", self, statusTip="Add light curve", triggered=self.add_lc)
+                               "Add &LC", self, statusTip="Add light curve", triggered=self.project_widget.add_lc)
         self.addRvCurveAct = QAction(IconFactory.getIcon('note_add'),
-                               "Add &RV", self, statusTip="Add radial velocity curve", triggered=self.add_rv)
+                               "Add &RV", self, statusTip="Add radial velocity curve",
+                                     triggered=self.project_widget.add_rv)
+        self.delCurveAct =   QAction(IconFactory.getIcon('note_del'),
+                               "Delete Curve", self, statusTip="Delete selected curve",
+                                     triggered=self.project_widget.del_curve)
+        self.delCurveAct.setEnabled(False)
 
         self.quitAct = QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application", triggered=self.close)
         self.aboutAct = QAction("&About", self, statusTip="Show the application's About box", triggered=self.about)
@@ -210,6 +219,7 @@ class MainWindow(QMainWindow):
         self.curvesToolBar.setObjectName("CURVES TOOLBAR")
         self.curvesToolBar.addAction(self.addLightCurveAct)
         self.curvesToolBar.addAction(self.addRvCurveAct)
+        self.curvesToolBar.addAction(self.delCurveAct)
 
 
     def createStatusBar(self):
@@ -222,6 +232,7 @@ class MainWindow(QMainWindow):
         dock.setAllowedAreas(Qt.AllDockWidgetAreas)
         self.detailsWidget = InfoPanelWidget(self)
         self.project_widget.curvesCurrentItemChanged.connect(self.detailsWidget.setItem)
+        self.project_widget.curvesCurrentItemChanged.connect(self.currentItemChanged)
         dock.setWidget(self.detailsWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
         self.viewMenu.addAction(dock.toggleViewAction())
