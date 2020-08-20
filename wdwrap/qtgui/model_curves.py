@@ -17,8 +17,15 @@ class CurveContainer(PropertiesAccessContainer):
 
     def __init__(self, name, data:WdCurve, parent=None, columns_mapper=lambda col: col, read_only=True):
         super().__init__(name, data, parent, columns_mapper, read_only)
-        data.observe(lambda change: self.on_plot_changed(change), ['plot'])
-        data.observe(lambda change: self.on_fit_changed(change), ['fit'])
+        self.get_content().observe(lambda change: self.on_plot_changed(change), ['plot'])
+        self.get_content().observe(lambda change: self.on_fit_changed(change), ['fit'])
+
+    def terminal_clean_up(self):
+        from traitlets import HasTraits
+        content: HasTraits = self.get_content()
+        if content:
+            content.unobserve_all()
+        super().terminal_clean_up()
 
     def get_plot(self):
         return self.content.plot
@@ -50,6 +57,15 @@ class CurveValuesContainer(PropertiesAccessContainer):
         super().__init__(name, data, parent, columns_mapper, read_only)
         self.sig_curve_changed = SignalDelayedPermanentTimer('curve_change')
         self.sig_curve_invalidated = SignalDelayedPermanentTimer('curve_invalidate')
+
+    def terminal_clean_up(self):
+        self.sig_curve_changed.enable(False)
+        self.sig_curve_changed.disconnect()
+        self.sig_curve_changed = None
+        self.sig_curve_invalidated.enable(False)
+        self.sig_curve_invalidated.disconnect()
+        self.sig_curve_invalidated = None
+        super().terminal_clean_up()
 
     def get_plot(self):
         return self.parent().plot
@@ -128,6 +144,15 @@ class CurvesModel(ContainersTreeModel):
                 name += f' {n}'
             self._add_curve(l, name=name)
         self.sort_curves()
+
+    def delete_curve_container(self, to_delete: CurveContainer):
+        if to_delete in self.display_root.children():
+            self.beginResetModel()
+            # to_delete.disconnect()
+            to_delete.setParent(None)
+            to_delete.deleteLater()
+            # del to_delete
+            self.endResetModel()
 
     def add_curve(self, curve: WdCurve, name: str = None):
         """Adds curve"""

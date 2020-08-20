@@ -1,7 +1,15 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 
-from PySide2.QtCore import QObject, Property, Signal
+from PySide2.QtCore import QObject, Property, Signal, Slot
 from PySide2.QtCore import Qt
+
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('model container')
+    return _logger
 
 
 class Container(QObject):
@@ -9,6 +17,19 @@ class Container(QObject):
         super().__init__(parent)
         self.setObjectName(name)
         self._content = data
+        self.destroyed.connect(self._slot_container_is_going_to_be_destroyed)
+
+    @Slot(QObject)
+    def _slot_container_is_going_to_be_destroyed(self, obj: QObject):
+        logger().info(f'{obj.objectName()} is going to be destroyed')
+        self.terminal_clean_up()
+
+    def terminal_clean_up(self):
+        try:
+            self._content.terminal_clean_up()
+        except AttributeError:
+            pass
+        self._content = None
 
     def get_content(self):
         return self._content
@@ -125,6 +146,9 @@ class ParentColumnContainer(Container):
             parents_column = name
         self.parents_column = parents_column
         self.data_column = data_column
+
+    def terminal_clean_up(self):
+        super().terminal_clean_up()
 
     def get_content(self):
         return self.parent().get_content()

@@ -1,11 +1,13 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+from typing import Optional
 
 import PySide2
-from PySide2.QtWidgets import QSplitter, QTreeView
+from PySide2.QtWidgets import QSplitter, QTreeView, QMessageBox
 from PySide2.QtCore import Qt, QSettings, Slot, QModelIndex, Signal
 
 from wdwrap.qtgui.container import Container
 from wdwrap.qtgui.delegate_curve import CurvesTableDelegate
+from wdwrap.qtgui.model_curves import CurveContainer
 from wdwrap.qtgui.widget_curvesplot import LightPlotWidget, RvPlotWidget
 from wdwrap.qtgui.delegate_parameters import ParametersTableDelegate
 from wdwrap.qtgui.project import Project
@@ -26,6 +28,7 @@ class ProjectWidget(QSplitter):
     def __init__(self, parent, f=...):
         super().__init__(parent, f)
         self.project = Project()
+        self.curr_curve_item: Optional[Container] = None
 
         self.main_splitter = self  # inheritance from QSplitter may not be preserved
         self.main_splitter.setOrientation(Qt.Horizontal)
@@ -96,6 +99,7 @@ class ProjectWidget(QSplitter):
         curr_item, curr_column = model.item_and_column(current)
 
         logger().info(f'Selection changed {prev_item} -> {curr_item}')
+        self.curr_curve_item = curr_item
 
         self.curvesCurrentItemChanged.emit(curr_item)
 
@@ -109,7 +113,13 @@ class ProjectWidget(QSplitter):
 
     @Slot()
     def del_curve(self):
-        self.project
+        to_del = self.curr_curve_item
+        while to_del is not None and not isinstance(to_del, CurveContainer):
+            to_del = to_del.parent()
+        if QMessageBox.question(self, 'Deleting Curve Confirmation', f'Delete the curve "{to_del.objectName()}"?') \
+                != QMessageBox.Yes:
+            return
+        self.project.delete_curve(to_del)
 
 
 

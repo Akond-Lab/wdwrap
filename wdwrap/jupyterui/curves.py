@@ -31,8 +31,6 @@ Module contains three families of classes:
 """
 
 _logger = None
-
-
 def logger():
     global _logger
     if _logger is None:
@@ -131,6 +129,9 @@ class CurveValues(HasTraits):
             self.dataframe = pd.DataFrame(columns=[self.indep_column, *self.dep_columns])
         self.observe(lambda change: self.get_approximators.invalidate_caches(),
                      ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
+
+    def terminal_clean_up(self):
+        self.dataframe = pd.DataFrame()
 
     def on_data_changed(self):
         self.get_approximators.cache_clear()
@@ -303,15 +304,30 @@ class WdGeneratedValues(GeneratedValues):
         self.calculation_semaphore = threading.Lock()
         self.is_rv = rv
         self.bundle = bundle
-        self.bundle.observe(lambda change: self.on_bundle_value_change(change))
         self.parameters = ParameterSet()
         self.parameters.update_filtered(self.bundle, ParameterSet.filter_curve)
+
         n = cfg().getint('curves', 'default-segments')
         assert 0 < n <= 20
         self.segment_dividers = list(np.linspace(0, 1, n + 1))
         self.segment_data = [{'PHIN': bundle['PHIN'].val} for _ in range(n)]  # n identical (but not the same) dicts
         self.futures: List[Future] = []
-        self.observe(lambda change: self.invalidate(), 'segment_dividers_version')
+        self.__handler_bundle_value_change = lambda change: self.on_bundle_value_change(change)
+        self.__handler_invalidate = lambda change: self.invalidate()
+        self.bundle.observe(self.__handler_bundle_value_change,
+                            flags_not=ParFlag.curvedep | ParFlag.curvepriv)  # observe all but curve specific
+        self.parameters.observe(self.__handler_bundle_value_change,
+                                flags_all=ParFlag.curvedep)  # observe curve specific
+        self.observe(self.__handler_invalidate, 'segment_dividers_version')
+
+    def terminal_clean_up(self):
+        self.bundle.unobserve(self.__handler_bundle_value_change)
+        self.parameters.unobserve(self.__handler_bundle_value_change)
+        self.unobserve_all()
+        self.parameters = None
+        self.bundle = None
+        super().terminal_clean_up()
+
 
     def generate(self, wait=False, timeout=None):
         self.cancel()

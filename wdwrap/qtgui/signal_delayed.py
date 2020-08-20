@@ -62,7 +62,10 @@ class SignalDelayedPermanentTimer:
 
     def disconnect(self, *args, **kwargs):
         logger().info(f'Signal {self.name} disconnecting')
-        self.signal.signal.disconnect(*args, **kwargs)
+        try:
+            self.signal.signal.disconnect(*args, **kwargs)
+        except RuntimeError:
+            pass
 
     def __call__(self, arg):
         logger().info(f'Signal {self.name} called')

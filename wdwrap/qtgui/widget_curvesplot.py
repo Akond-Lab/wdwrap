@@ -56,6 +56,10 @@ class CurvesPlotWidget(FigureCanvas):
             shapes: Mapping[Artist] = self.plot_curve(curve)
             self.curves_artists[curve] = shapes
 
+    def redraw_idle(self):
+        self.draw_idle()
+
+
     @Slot(CurveValuesContainer)
     def on_observed_curve_changed(self, curve_values_container):
         self.logger.info(f'On observed curve change  {curve_values_container.content}: adjusting')
@@ -107,6 +111,12 @@ class CurvesPlotWidget(FigureCanvas):
             curve = curve_container.content
             curve.gen_values.refresh()
         return {}
+
+    def _xy_for_generated_curve(self, generated: WdGeneratedValues):
+        x = np.linspace(-0.1, 1.1, 600)
+        y = generated.get_values_at(x % 1.0)
+        return x, y
+
 
 class WdCurvesPlotWidget(CurvesPlotWidget):
     def __init__(self, model: CurvesModel):
@@ -166,6 +176,7 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.ax_resid.axvspan(-100.0, 0.0, alpha=span_alpha, in_layout=False)
         self.ax_resid.axvspan(1.0, 100.0, alpha=span_alpha, in_layout=False)
         super().plot_curves()
+        self.redraw_idle()
 
     def redraw_idle(self):
         self.ax.relim()
@@ -173,7 +184,7 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.ax_resid.relim()
         self.ax_resid.autoscale()
         self.ax.set_xlim(-0.1, 1.1, auto=False)
-        self.draw_idle()
+        super().redraw_idle()
 
     def _prepare_axis(self):
         pass
@@ -198,11 +209,15 @@ class LightPlotWidget(WdCurvesPlotWidget):
         super().invalidate_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
-            artists = self.curves_artists[curve_container]
-            line: Line2D = artists['gen']
-            line.set_xdata([])
-            line.set_ydata([])
-            self.redraw_idle()
+            try:
+                artists = self.curves_artists[curve_container]
+                line: Line2D = artists['gen']
+                line.set_xdata([])
+                line.set_ydata([])
+                self.redraw_idle()
+            except LookupError:
+                logger().warning('Invalidating not existing curve. Remnant of removed curve still exists?')
+                pass
 
     def update_generated_curve(self, curve_values_container: CurveValuesContainer):
         super().update_generated_curve(curve_values_container)
@@ -215,11 +230,10 @@ class LightPlotWidget(WdCurvesPlotWidget):
             line: Line2D = artists['gen']
             line.set_xdata(gen_df['ph'])
             line.set_ydata(gen_df['mag'])
-            x = np.linspace(-0.1, 1.1, 600)
-            y = generated.get_values_at(x % 1.0)['mag']
+            x, y = self._xy_for_generated_curve(generated)
             line: Line2D = artists['gen_approx']
             line.set_xdata(x)
-            line.set_ydata(y)
+            line.set_ydata(y['mag'])
             self.redraw_idle()
 
     def update_observed_curve(self, curve_values_container: CurveValuesContainer):
@@ -259,8 +273,9 @@ class LightPlotWidget(WdCurvesPlotWidget):
             curve: WdCurve = curve_container.content
             gen = curve.gen_values
             gen_df = gen.get_values_at()
+            x, y = self._xy_for_generated_curve(generated=gen)
             ret['gen_approx'] = self.ax.plot(
-                gen_df['ph'], gen_df['mag'],
+                x, y['mag'],
                 '-', color=curve.color, alpha=0.4,
             )[0]
             ret['gen'] = self.ax.plot(
@@ -313,8 +328,7 @@ class RvPlotWidget(WdCurvesPlotWidget):
             generated: WdGeneratedValues = curve.gen_values
             gen_df = generated.get_values_at()
             artists = self.curves_artists[curve_container]
-            x = np.linspace(-0.1, 1.1, 600)
-            y = generated.get_values_at(x % 1.0)
+            x, y = self._xy_for_generated_curve(generated)
             for rv in ['rv1', 'rv2']:
                 line: Line2D = artists['gen_'+rv]
                 line.set_xdata(gen_df['ph'])
@@ -323,6 +337,7 @@ class RvPlotWidget(WdCurvesPlotWidget):
                 line.set_xdata(x)
                 line.set_ydata(y[rv])
             self.redraw_idle()
+
 
     def update_observed_curve(self, curve_values_container: CurveValuesContainer):
         super().update_observed_curve(curve_values_container)
@@ -364,12 +379,13 @@ class RvPlotWidget(WdCurvesPlotWidget):
             curve: WdCurve = curve_container.content
             gen = curve.gen_values
             gen_df = gen.get_values_at()
+            x_genline, y_genline = self._xy_for_generated_curve(gen)
             obs = curve.obs_values
             obs_df = obs.get_values_at()
             gen_at_obs = gen.get_values_at(obs_df['ph'])
             for rv, color in [('rv1', 'red'), ('rv2', 'blue')]:
                 ret['gen_approx_'+rv] = self.ax.plot(
-                    gen_df['ph'], gen_df[rv],
+                    x_genline, y_genline[rv],
                     '-', color=color, alpha=0.4,
                 )[0]
                 ret['gen_'+rv] = self.ax.plot(

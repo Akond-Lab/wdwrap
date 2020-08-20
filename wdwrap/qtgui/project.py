@@ -7,7 +7,7 @@ from wdwrap.bundle import Bundle
 from wdwrap.io import Writer_lcin
 from wdwrap.jupyterui.curves import LightCurve, VelocCurve
 from wdwrap.qtgui.model_bundle import BundleModel
-from wdwrap.qtgui.model_curves import CurvesModel
+from wdwrap.qtgui.model_curves import CurvesModel, CurveContainer
 
 
 class Project(QObject):
@@ -37,4 +37,8 @@ class Project(QObject):
     @Slot()
     def add_rv(self):
         self.curves_model.add_curve(VelocCurve(bundle=self.bundle))
+
+    @Slot(CurveContainer)
+    def delete_curve(self, to_delete: CurveContainer):
+        self.curves_model.delete_curve_container(to_delete)
 
