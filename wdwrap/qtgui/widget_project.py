@@ -23,12 +23,12 @@ def logger():
 
 class ProjectWidget(QSplitter):
 
-    curvesCurrentItemChanged = Signal(Container)
+    treeCurrentItemChanged = Signal(Container)
 
     def __init__(self, parent, f=...):
         super().__init__(parent, f)
         self.project = Project()
-        self.curr_curve_item: Optional[Container] = None
+        self.current_tree_item: Optional[Container] = None
 
         self.main_splitter = self  # inheritance from QSplitter may not be preserved
         self.main_splitter.setOrientation(Qt.Horizontal)
@@ -42,13 +42,16 @@ class ProjectWidget(QSplitter):
         self.w_parameters_tree.setModel(self.project.parameters_model)
         delegate = ParametersTableDelegate()
         self.w_parameters_tree.setItemDelegate(delegate)
+        self.selection_model_parameters = self.w_parameters_tree.selectionModel()
+        self.selection_model_parameters.currentRowChanged.connect(self._on_tree_row_changed)
+
 
         self.w_curves_tree = QTreeView()
         self.w_curves_tree.setModel(self.project.curves_model)
         delegate = CurvesTableDelegate()
         self.w_curves_tree.setItemDelegate(delegate)
         self.selection_model_curves = self.w_curves_tree.selectionModel()
-        self.selection_model_curves.currentRowChanged.connect(self._on_curves_tree_row_changed)
+        self.selection_model_curves.currentRowChanged.connect(self._on_tree_row_changed)
 
         self.w_light_plot = LightPlotWidget(self.project.curves_model)
         self.w_rv_plot = RvPlotWidget(self.project.curves_model)
@@ -92,16 +95,16 @@ class ProjectWidget(QSplitter):
         settings.endGroup()
 
     @Slot(QModelIndex,  QModelIndex)
-    def _on_curves_tree_row_changed(self, current: QModelIndex, previous: QModelIndex):
+    def _on_tree_row_changed(self, current: QModelIndex, previous: QModelIndex):
         model = current.model()
 
         prev_item, prev_column = model.item_and_column(previous)
         curr_item, curr_column = model.item_and_column(current)
 
         logger().info(f'Selection changed {prev_item} -> {curr_item}')
-        self.curr_curve_item = curr_item
+        self.current_tree_item = curr_item
 
-        self.curvesCurrentItemChanged.emit(curr_item)
+        self.treeCurrentItemChanged.emit(curr_item)
 
     @Slot()
     def add_lc(self):
@@ -113,7 +116,7 @@ class ProjectWidget(QSplitter):
 
     @Slot()
     def del_curve(self):
-        to_del = self.curr_curve_item
+        to_del = self.current_tree_item
         while to_del is not None and not isinstance(to_del, CurveContainer):
             to_del = to_del.parent()
         if QMessageBox.question(self, 'Deleting Curve Confirmation', f'Delete the curve "{to_del.objectName()}"?') \

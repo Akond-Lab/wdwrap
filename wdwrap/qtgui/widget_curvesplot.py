@@ -59,6 +59,14 @@ class CurvesPlotWidget(FigureCanvas):
     def redraw_idle(self):
         self.draw_idle()
 
+    def get_curve_container(self, curve: WdCurve):
+        for c in self.curves_iter():
+            try:
+                if c.content == curve:
+                    return c
+            except AttributeError:
+                pass
+        return None
 
     @Slot(CurveValuesContainer)
     def on_observed_curve_changed(self, curve_values_container):
@@ -81,6 +89,33 @@ class CurvesPlotWidget(FigureCanvas):
             curve.gen_values.refresh()
             self.logger.info(f'Forced curve {curve_values_container} refresh')
 
+    @Slot(CurveContainer)
+    def on_curve_plot_changed(self, curve_container: CurveContainer):
+        curve: WdCurve = curve_container.content
+        artists = self.curves_artists[curve_container]
+        plot = curve_container.plot
+        if plot and len(artists) == 0:
+            self.plot_curve(curve_container)
+        else:
+            for a in artists.values():
+                a.set_visible(plot)
+        self.redraw_idle()
+
+    @Slot(CurveContainer)
+    def on_curve_color_changed(self, curve_container: CurveContainer):
+        self.update_curve_color(curve_container)
+
+    def update_curve_color(self, curve_container: CurveContainer):
+        curve: WdCurve = curve_container.content
+        if curve.is_rv():
+            return
+        artists = self.curves_artists[curve_container]
+        for a in artists.values():
+            try:
+                a.set_color(curve.color)
+            except AttributeError:
+                pass
+        self.redraw_idle()
 
     def update_curve(self, curve_values_container: CurveValuesContainer):
         self.update_generated_curve(curve_values_container)
@@ -100,7 +135,7 @@ class CurvesPlotWidget(FigureCanvas):
         pass
 
     def plot_curve(self, curve_container: CurveContainer):
-
+        curve_container.sig_plot_changed.connect(self.on_curve_plot_changed)
         if curve_container.plot:
             g: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'synthetic')
             o: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'observed')
@@ -109,6 +144,7 @@ class CurvesPlotWidget(FigureCanvas):
             g.sig_curve_invalidated.connect(self.on_generated_curve_invalidated)
             o.sig_curve_changed.connect(self.on_observed_curve_changed)
             curve = curve_container.content
+            curve.observe(lambda change: self.update_curve_color(curve_container), 'color')
             curve.gen_values.refresh()
         return {}
 
@@ -158,7 +194,7 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
 
     def curves_filter(self, curve: WdCurve, **kwargs) -> bool:
         for_plotting = kwargs.get('plot', False)
-        return curve.plot or not for_plotting
+        return curve.plot or not for_plotting  #  either always True or curve.plot if for plotting
 
     def curves_iter(self, **kwargs):
         for curve_container in self.curves_model.curves_iter():
@@ -179,9 +215,9 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.redraw_idle()
 
     def redraw_idle(self):
-        self.ax.relim()
+        self.ax.relim(visible_only=True)
         self.ax.autoscale()
-        self.ax_resid.relim()
+        self.ax_resid.relim(visible_only=True)
         self.ax_resid.autoscale()
         self.ax.set_xlim(-0.1, 1.1, auto=False)
         super().redraw_idle()

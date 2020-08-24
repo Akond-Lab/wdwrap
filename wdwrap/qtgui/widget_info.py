@@ -4,12 +4,16 @@ from typing import Optional
 
 from PySide2.QtCore import Slot, Signal
 from PySide2.QtWidgets import QWidget, QVBoxLayout, QLabel, QTabWidget, QGroupBox, QTableWidget, QTableWidgetItem, \
-    QHBoxLayout, QToolButton
+    QHBoxLayout, QToolButton, QCheckBox, QGridLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit
 
 from wdwrap.jupyterui.curves import WdGeneratedValues
 from wdwrap.qtgui.container import Container, ParentColumnContainer
-from wdwrap.qtgui.model_curves import CurveValuesContainer, CurveGeneratedContainer
+from wdwrap.qtgui.model_connector import TraitletsModelConnector, connected_widget, QObjectModelConnector, \
+    PythonPropertyConnector, PythonMethodConnector
+from wdwrap.qtgui.model_curves import CurveValuesContainer, CurveGeneratedContainer, CurveContainer
+from wdwrap.qtgui.widget_colorpicker import SelectColorButton
 from wdwrap.qtgui.widget_pandas import WidgetPandas
+from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
 _logger = None
 def logger():
@@ -25,6 +29,10 @@ class DetailsPageBase(QWidget):
         self.item: Optional[Container] = None
         self.enabled = False
         self.label = label
+
+    def is_active_for_item(self, item):
+        """Should return item or None if not active"""
+        return None
 
     @Slot(Container)
     def setItem(self, item: Container):
@@ -49,6 +57,35 @@ class NoItemPage(DetailsPageBase):
         layout.addWidget(self.label1)
         self.setLayout(layout)
 
+class WdParameterPage(DetailsPageBase):
+    def __init__(self, parent=None):
+        super().__init__(parent, 'wd parameter')
+        layout = QVBoxLayout()
+        self.name = connected_widget(QLineEdit, PythonMethodConnector('name'), 'setText', None)
+        self.help_str = connected_widget(QTextEdit, PythonPropertyConnector('help_str'), 'setText', None)
+        self.doc = connected_widget(QTextEdit, PythonPropertyConnector('doc'), 'setText', None)
+        layout.addWidget(self.name)
+        layout.addWidget(self.help_str)
+        layout.addWidget(self.doc)
+
+        self.setLayout(layout)
+
+    def is_active_for_item(self, item):
+        """Should return item or None if not active"""
+        if isinstance(item, WdParameterContainer):
+            return item
+        else:
+            return None
+
+    def item_changed(self, previous_item: Container):
+        super().item_changed(previous_item)
+        try:
+            property = self.item.content
+            self.name.model_connector.connect_model(property)
+            self.help_str.model_connector.connect_model(property)
+            self.doc.model_connector.connect_model(property)
+        except AttributeError:
+            pass
 
 class DataPage(DetailsPageBase):
     def __init__(self, parent=None):
@@ -58,6 +95,13 @@ class DataPage(DetailsPageBase):
         layout.addWidget(self.pandas)
         self.setLayout(layout)
 
+    def is_active_for_item(self, item):
+        """Should return item or None if not active"""
+        if isinstance(item, CurveValuesContainer):
+            return item
+        else:
+            return None
+
     def item_changed(self, previous_item: Container):
         super().item_changed(previous_item)
         try:
@@ -65,6 +109,85 @@ class DataPage(DetailsPageBase):
         except AttributeError:
             df = None
         self.pandas.setDataFrame(df)
+
+class CurveMainPage(DetailsPageBase):
+    def __init__(self, parent=None):
+        super().__init__(parent, 'curve details')
+        self.curve = None
+
+        layout = QVBoxLayout()
+
+        group_0 = QGroupBox('Curve')
+        grp_layout = QHBoxLayout()
+        grp_layout1 = QFormLayout()
+        self.curvename = connected_widget(QLineEdit, QObjectModelConnector(), 'setText', 'textEdited')
+        self.filename  = connected_widget(QLineEdit, TraitletsModelConnector('filename'), 'setText', None)
+        grp_layout1.addRow('Name', self.curvename)
+        grp_layout1.addRow('File', self.filename)
+        grp_layout.addLayout(grp_layout1)
+        grp_layout2 = QVBoxLayout()
+        self.kind_label = QLabel('?')
+        self.load_button = QPushButton('Load')
+        grp_layout2.addWidget(self.kind_label)
+        grp_layout2.addWidget(self.load_button)
+        grp_layout.addLayout(grp_layout2)
+        group_0.setLayout(grp_layout)
+        layout.addWidget(group_0)
+
+        group_1 = QGroupBox('Plot')
+        grp_layout = QHBoxLayout()
+        self.plot_button = QCheckBox('Visible')
+        self.color_button = SelectColorButton()
+        self.color_button.model_connector = TraitletsModelConnector(property_name='color')
+        # self.color_button.setText('Color')
+        grp_layout.addWidget(self.plot_button)
+        grp_layout.addStretch()
+        grp_layout.addWidget(QLabel('Color'))
+        grp_layout.addWidget(self.color_button)
+        group_1.setLayout(grp_layout)
+        layout.addWidget(group_1)
+
+        layout.addStretch()
+        self.setLayout(layout)
+
+        # self.table_segments.itemActivated.connect(self._on_segment_activated)
+        # self.table_segments.itemChanged.connect(self._on_segment_item_changed)
+        # self.add_segment_button.clicked.connect(self._on_segment_add_clicked)
+        # self.del_segment_button.clicked.connect(self._on_segment_del_clicked)
+
+
+    # @Slot(bool)
+    # def _on_segment_add_clicked(self, selected: bool):
+    #     """on delete segment button"""
+    #     row = self.table_segments.currentRow()
+    #     if row is None:
+    #         return
+    #     self.gen_curve.segment_split(row)
+    #     self.populate_segments()
+
+    def is_active_for_item(self, item):
+        """Should return item or None if not active"""
+        if isinstance(item, CurveContainer):
+            return item
+        else:
+            return None
+
+    def item_changed(self, previous_item: Container):
+        """when curved item for which details are displayed hve been changed"""
+        super().item_changed(previous_item)
+        if self.enabled:
+            try:
+                if isinstance(self.item, CurveContainer):
+                    self.curve = self.item.content
+                    self.color_button.model_connector.connect_model(self.curve)
+                    self.curvename.model_connector.connect_model(self.item, self.item.setObjectName,
+                                                                 self.item.objectNameChanged, self.item.objectName())
+                    self.filename.model_connector.connect_model(self.curve.obs_values)
+                else:
+                    self.curve = None
+            except AttributeError:
+                self.curve = None
+
 
 class GeneratedCurvePage(DetailsPageBase):
     def __init__(self, parent=None):
@@ -99,6 +222,14 @@ class GeneratedCurvePage(DetailsPageBase):
         self.table_segments.itemChanged.connect(self._on_segment_item_changed)
         self.add_segment_button.clicked.connect(self._on_segment_add_clicked)
         self.del_segment_button.clicked.connect(self._on_segment_del_clicked)
+
+    def is_active_for_item(self, item):
+        """Should return item or None if not active"""
+        if isinstance(item, CurveGeneratedContainer):
+            return item
+        else:
+            return None
+
 
     @Slot(QTableWidgetItem)
     def _on_segment_activated(self, item: QTableWidgetItem):
@@ -180,7 +311,6 @@ class GeneratedCurvePage(DetailsPageBase):
             item.setText(str(txt))
 
 
-
 class InfoPanelWidget(QWidget):
 
     itemChanged = Signal(Container)
@@ -201,6 +331,8 @@ class InfoPanelWidget(QWidget):
         self.setLayout(layout)
 
     def _register_tabs(self):
+        self.all_tabs.append(WdParameterPage())
+        self.all_tabs.append(CurveMainPage())
         self.all_tabs.append(GeneratedCurvePage())
         self.all_tabs.append(DataPage())
         self.all_tabs.append(NoItemPage())
@@ -217,15 +349,12 @@ class InfoPanelWidget(QWidget):
             self._selectTabs()
             self.itemChanged.emit(item)
 
-    def _should_be_active(self, page):
+    def _should_be_active(self, page: DetailsPageBase):
         if isinstance(page, NoItemPage):
             return self.item is None
-        elif isinstance(page, DataPage):
-            return isinstance(self.item, CurveValuesContainer)
-        elif isinstance(page, GeneratedCurvePage):
-            return isinstance(self.item, CurveGeneratedContainer)
         else:
-            return False
+            return page.is_active_for_item(self.item) is not None
+
 
     def _selectTabs(self):
         # remove
