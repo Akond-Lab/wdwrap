@@ -2,20 +2,53 @@
 A Wilson-Devinney Code wrapper
 ==============================
 
-This is the README file for the project.
+This Project is in early stage, please do not submit issues.
+If you are interesting in using and/or contributing please contact me.
 
+Qt GUI entry point:
+```
+    wdwrap/qtgui/wd.py
+```
 
-Typical contents for this file would include an overview of the project, basic
-usage examples, etc. Generally, including the project changelog in here is not
-a good idea, although a simple "What's New" section for the most recent version
-may be appropriate.
 
 [1] ftp://ftp.astro.ufl.edu/pub/wilson
 
 
-## Instalation
+## Installation
+#### 1. Python version
+`wdwrap` requires Python 3.8. If your python 3 is not the default one, you may change `python` to `python3` in
+invocations below.  
+#### 2. Clone the repository
+```
+    git clone git@github.com:Akond-Lab/wdwrap.git
+    cd wdwrap
+```
+#### 3. Make virtual environment
+Optional, but project uses Qt5 among other heavy packages, so it's good to isolate it from your other projects
+```
+python venv venv
+source venv/bin/activate
+``` 
+#### 4. Install dependencies
+```
+pip install -r requirements.txt
+```
 
-#### Server extension:
+## Updating
+```
+cd myrpojectsdir/wdwrap
+git pull
+pip install -r requirements.txt
+```
+
+## Running GUI
+```
+cd myrpojectsdir/wdwrap
+pyhon wdwrap/qtgui/wd.py
+```
+
+#### Server extension for jupiter GUI:
+Jupyter GUI is under construction and not usable yet
 ```
     jupyter serverextension enable voila --sys-prefix
 ```
