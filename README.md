@@ -43,7 +43,8 @@ pip install -r requirements.txt
 
 ## Running GUI
 ```
-cd myrpojectsdir/wdwrap
+cd myrpojectsdir/wdwrap 
+source venv/bin/activate
 pyhon wdwrap/qtgui/wd.py
 ```
 
