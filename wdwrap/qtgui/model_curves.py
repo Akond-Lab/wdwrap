@@ -3,8 +3,7 @@ import logging
 from typing import Optional, List
 
 from PySide2.QtCore import Signal, Property, QObject
-from wdwrap.bundle import Bundle
-from wdwrap.jupyterui.curves import WdCurve, GeneratedValues
+from wdwrap.curves import WdCurve, GeneratedValues
 from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset

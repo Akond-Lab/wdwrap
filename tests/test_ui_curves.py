@@ -10,14 +10,14 @@ class TestUiCurves(unittest.TestCase):
         pass
 
     def test_curve_construction(self):
-        from wdwrap.jupyterui.curves import LightCurve, VelocCurve
+        from wdwrap.curves import LightCurve, VelocCurve
         lc = LightCurve()
         vc = VelocCurve()
         self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
         self.assertRaises(LookupError, lambda: lc.wdparams.param_dict['XLAT'])
 
     def test_curve_generation(self):
-        from wdwrap.jupyterui.curves import LightCurve
+        from wdwrap.curves import LightCurve
         from wdwrap.bundle import Bundle
         bundle = Bundle.default_binary()
         lc = LightCurve(bundle=bundle)
@@ -27,7 +27,7 @@ class TestUiCurves(unittest.TestCase):
         self.assertGreater(len(values), 10)
 
     def test_curve_generation_at_points(self):
-        from wdwrap.jupyterui.curves import LightCurve
+        from wdwrap.curves import LightCurve
         from wdwrap.bundle import Bundle
         bundle = Bundle.default_binary()
         lc = LightCurve(bundle=bundle)

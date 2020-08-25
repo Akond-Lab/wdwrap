@@ -2,10 +2,10 @@
 import logging
 
 from traitlets import HasTraits, Float, Int, Enum, Bool, List
-from ..param import Parameter, FloatParameter, IntParameter, ParFlag
-from ..drivers.filestructure import FileStructure
-from ..bundle import ParameterSet
-from ..config import cfg
+from wdwrap.param import Parameter, FloatParameter, IntParameter, ParFlag
+from wdwrap.drivers.filestructure import FileStructure
+from wdwrap.bundle import ParameterSet
+from wdwrap.config import cfg
 
 class WdParamTrait(HasTraits):
 

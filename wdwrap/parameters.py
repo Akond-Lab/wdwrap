@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from typing import Iterator, Tuple, Mapping, overload, Iterable
 
+from traitlets import traitlets
+
 from .drivers.filestructure import FileStructure
 from .param import ParFlag, Parameter
 
@@ -148,10 +150,10 @@ class ParameterSet(OrderedDict):
                 continue
             yield key, item
 
-    def observe(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None):
+    def observe(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None, names=traitlets.All):
         """Traitlets observe (sub)set of bundle parameters"""
         for key, item in self.iter(flags_any=flags_any, flags_all=flags_all, flags_not=flags_not, classes=classes):
-            item.observe(handler)
+            item.observe(handler, names=names)
 
     def unobserve(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None):
         """Traitlets observe (sub)set of bundle parameters"""

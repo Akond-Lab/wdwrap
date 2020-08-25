@@ -3,9 +3,9 @@ import os
 
 import PySide2
 from PySide2.QtCore import QModelIndex, Qt
-from PySide2.QtWidgets import QStyledItemDelegate, QComboBox, QFileDialog
+from PySide2.QtWidgets import QStyledItemDelegate, QComboBox
 
-from wdwrap.jupyterui.curves import ObservedValues
+from wdwrap.curves import ObservedValues
 from wdwrap.qtgui.dataopendialog import DataOpenDialog
 from wdwrap.qtgui.delegate_parameters import ParametersTableDelegate
 

@@ -13,7 +13,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from wdwrap.jupyterui.curves import WdCurve, WdGeneratedValues, ObservedValues
+from wdwrap.curves import WdCurve, WdGeneratedValues, ObservedValues
 from wdwrap.qtgui.model_curves import CurvesModel, CurveValuesContainer, CurveContainer
 
 _logger = None

@@ -3,25 +3,23 @@ import functools
 import math
 import threading
 from collections import OrderedDict
-from enum import Enum
 import random
-from typing import Union, Optional, List
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
-from traitlets import HasTraits, Bool, Int, Float, Instance, validate, Unicode
-from traittypes import DataFrame
+from traitlets import HasTraits, Bool, Int, Float, Instance, Unicode
 
-from scipy.interpolate import BSpline, CubicSpline
+from scipy.interpolate import CubicSpline
 from dask.distributed import Future
 
-from .wdtraits import WdParamTraitCollection
-from ..bundle import Bundle
-from ..config import cfg
-from ..jobs import JobScheduler
-from ..param import ParFlag
-from ..drivers import MPAGE
-from ..parameters import ParameterSet
+from wdtraits import WdParamTraitCollection
+from wdwrap.bundle import Bundle
+from wdwrap.config import cfg
+from wdwrap.jobs import JobScheduler
+from wdwrap.param import ParFlag
+from wdwrap.drivers import MPAGE
+from wdwrap.parameters import ParameterSet
 
 """
 Module contains three families of classes:
@@ -314,9 +312,9 @@ class WdGeneratedValues(GeneratedValues):
         self.futures: List[Future] = []
         self.__handler_bundle_value_change = lambda change: self.on_bundle_value_change(change)
         self.__handler_invalidate = lambda change: self.invalidate()
-        self.bundle.observe(self.__handler_bundle_value_change,
+        self.bundle.observe(self.__handler_bundle_value_change, names=['val'],
                             flags_not=ParFlag.curvedep | ParFlag.curvepriv)  # observe all but curve specific
-        self.parameters.observe(self.__handler_bundle_value_change,
+        self.parameters.observe(self.__handler_bundle_value_change, names=['val'],
                                 flags_all=ParFlag.curvedep)  # observe curve specific
         self.observe(self.__handler_invalidate, 'segment_dividers_version')
 

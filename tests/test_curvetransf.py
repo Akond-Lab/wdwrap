@@ -2,7 +2,7 @@
 
 import unittest
 import wdwrap.sample
-import wdwrap.jupyterui.curves
+import wdwrap.curves
 
 class CurveTransformCase(unittest.TestCase):
 
@@ -10,7 +10,7 @@ class CurveTransformCase(unittest.TestCase):
         P = 20.1782302
         T0 = 5096.50028
         lc = wdwrap.sample.sample_lc_dataframe()
-        phaser = wdwrap.jupyterui.curves.CurvePhaser(hjd0=T0, period=P)
+        phaser = wdwrap.curves.CurvePhaser(hjd0=T0, period=P)
         lcp = phaser.transform(lc)
 
         self.assertEqual(len(lcp), len(lc))
@@ -21,8 +21,8 @@ class CurveTransformCase(unittest.TestCase):
         P = 20.1782302
         T0 = 5096.50028
         lc = wdwrap.sample.sample_lc_dataframe()
-        phaser = wdwrap.jupyterui.curves.CurvePhaser(hjd0=T0, period=P)
-        resampler = wdwrap.jupyterui.curves.CurveResampler(k=20, active=True)
+        phaser = wdwrap.curves.CurvePhaser(hjd0=T0, period=P)
+        resampler = wdwrap.curves.CurveResampler(k=20, active=True)
         lcp = resampler.transform(phaser.transform(lc))
         self.assertEqual(len(lcp), 20)
         self.assertGreaterEqual(lcp['ph'].min(), 0)
@@ -30,8 +30,8 @@ class CurveTransformCase(unittest.TestCase):
 
     def test_resample_noparams(self):
         lc = wdwrap.sample.sample_lc_dataframe()
-        phaser = wdwrap.jupyterui.curves.CurvePhaser()
-        resampler = wdwrap.jupyterui.curves.CurveResampler()
+        phaser = wdwrap.curves.CurvePhaser()
+        resampler = wdwrap.curves.CurveResampler()
         lcp = resampler.transform(phaser.transform(lc))
         self.assertEqual(len(lcp), len(lc))
         self.assertGreaterEqual(lcp['ph'].min(), 0)
@@ -44,9 +44,9 @@ class ConvertedValuesCase(unittest.TestCase):
         T0 = 5096.50028
         k = 20
         lc = wdwrap.sample.sample_lc_dataframe()
-        t1 = wdwrap.jupyterui.curves.ConvertedValues(df=lc)
-        t2 = wdwrap.jupyterui.curves.ConvertedValues()
-        t3 = wdwrap.jupyterui.curves.ConvertedValues()
+        t1 = wdwrap.curves.ConvertedValues(df=lc)
+        t2 = wdwrap.curves.ConvertedValues()
+        t3 = wdwrap.curves.ConvertedValues()
         self.assertEqual(len(t1.df), len(lc))
         self.assertEqual(len(t2.df), 0)
         t1.transformers['phaser'].hjd0 = T0

@@ -1,10 +1,10 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 from traitlets import List, Instance, HasTraits, Int
 
-from .wdtraits import WdParamTraitCollection
-from ..bundle import Bundle
-from .curves import VelocCurve, LightCurve
-from ..param import ParFlag
+from wdtraits import WdParamTraitCollection
+from wdwrap.bundle import Bundle
+from wdwrap.curves import VelocCurve, LightCurve
+from wdwrap.param import ParFlag
 
 
 class Project(HasTraits):

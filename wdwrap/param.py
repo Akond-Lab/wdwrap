@@ -1,6 +1,6 @@
 import re
 import astropy.units as u
-from traitlets import HasTraits, Instance
+from traitlets import HasTraits, Instance, Float, Bool
 
 from .fformat import FortranFormatter, Flags, Formatter, FortranDFormatter, FortranZFormatter
 
@@ -70,12 +70,15 @@ class Parameter(HasTraits):
     fmt_lcin = '{}'
     help_str = 'parameter'
     help_val = None
-    max = None
-    min = None
+    max = None  # class level defaults
+    min = None  # class level defaults
     unit = None
     nan_value = None
     flags = ParFlag.none
     val = Instance(object, allow_none=True)
+    val_min = Float(allow_none=True)
+    val_max = Float(allow_none=True)
+    fix = Bool()         # Fixed - do not include in fitting
 
     def __init__(self, val=None):
         super(Parameter, self).__init__()
@@ -83,6 +86,8 @@ class Parameter(HasTraits):
             self.from_str(val)
         else:
             self.val = val
+        self.val_min = self.min
+        self.val_max = self.max
         self.fix = True
 
     def __str__(self):

@@ -4,9 +4,9 @@ from typing import Optional
 
 from PySide2.QtCore import Slot, Signal
 from PySide2.QtWidgets import QWidget, QVBoxLayout, QLabel, QTabWidget, QGroupBox, QTableWidget, QTableWidgetItem, \
-    QHBoxLayout, QToolButton, QCheckBox, QGridLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit
+    QHBoxLayout, QToolButton, QCheckBox, QFormLayout, QLineEdit, QPushButton, QTextEdit
 
-from wdwrap.jupyterui.curves import WdGeneratedValues
+from wdwrap.curves import WdGeneratedValues
 from wdwrap.qtgui.container import Container, ParentColumnContainer
 from wdwrap.qtgui.model_connector import TraitletsModelConnector, connected_widget, QObjectModelConnector, \
     PythonPropertyConnector, PythonMethodConnector

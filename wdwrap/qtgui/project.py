@@ -5,7 +5,7 @@ import PySide2
 from PySide2.QtCore import QObject, Slot
 from wdwrap.bundle import Bundle
 from wdwrap.io import Writer_lcin
-from wdwrap.jupyterui.curves import LightCurve, VelocCurve
+from wdwrap.curves import LightCurve, VelocCurve
 from wdwrap.qtgui.model_bundle import BundleModel
 from wdwrap.qtgui.model_curves import CurvesModel, CurveContainer
 

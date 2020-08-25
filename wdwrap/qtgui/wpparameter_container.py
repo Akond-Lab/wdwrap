@@ -7,6 +7,14 @@ from wdwrap.param import Parameter, ParFlag
 from wdwrap.qtgui.container import Container
 
 
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('param container')
+    return _logger
+
 class WdParameterContainer(Container):
     @property
     def wdpar(self) -> Parameter:
@@ -36,9 +44,9 @@ class WdParameterContainer(Container):
                 elif column == 'help' and role in [Qt.DisplayRole]:
                     ret = self.wdpar.__doc__
                 elif column == 'min' and role in [Qt.DisplayRole, Qt.EditRole]:
-                    ret = self.wdpar.min
+                    ret = self.wdpar.val_min
                 elif column == 'max' and role in [Qt.DisplayRole, Qt.EditRole]:
-                    ret = self.wdpar.max
+                    ret = self.wdpar.val_max
                 elif column == 'fit' and role in [Qt.CheckStateRole]:
                     if self.wdpar.flags & ParFlag.fittable:
                         ret = Qt.Unchecked if self.wdpar.fix else Qt.Checked
@@ -66,18 +74,22 @@ class WdParameterContainer(Container):
 
         ret = False
         try:
+            if isinstance(data, str):
+                data = self.content.scan_str(data)
             if column == 'value':
-                self.content.from_str(data)
+                self.content.val = data
                 ret = True
             elif column == 'min':
-                self.content.min = self.content.scan_str(data)
+                self.content.val_min = data
                 ret = True
             elif column == 'max':
-                self.content.max = self.content.scan_str(data)
+                self.content.val_max = data
                 ret = True
             elif column == 'fit':
                 self.content.fix = not bool(data)
                 ret = True
+        except ValueError as e:
+            logger().exception(f'Wrong value "{data}"', exc_info=e)
         except Exception as e:
             raise e
         return ret

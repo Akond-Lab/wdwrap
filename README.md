@@ -15,6 +15,14 @@ Qt GUI entry point:
 
 
 ## Installation
+#### 0. Wilson-Devinney Code
+You need Wilson-Devinney Code installed (download from here: ftp://ftp.astro.ufl.edu/pub/wilson).
+The framework is ment to be compatible with multiple version of WD code, but currently only 2015 version
+is supported.
+
+**You need to have LC executable, named or symlinked as `lc2015` in your path.**
+
+  
 #### 1. Python version
 `wdwrap` requires Python 3.8. If your python 3 is not the default one, you may change `python` to `python3` in
 invocations below.  
