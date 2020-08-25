@@ -19,33 +19,37 @@ Qt GUI entry point:
 `wdwrap` requires Python 3.8. If your python 3 is not the default one, you may change `python` to `python3` in
 invocations below.  
 #### 2. Clone the repository
+Below, we suppose that the installation directory is `~/src/wdwrap`, change `~/src/` to your home directory for 
+projects or endure that `~/src/` exists.
 ```
-    git clone git@github.com:Akond-Lab/wdwrap.git
+    cd ~/src
+    git clone https://github.com/Akond-Lab/wdwrap.git
     cd wdwrap
 ```
 #### 3. Make virtual environment
 Optional, but project uses Qt5 among other heavy packages, so it's good to isolate it from your other projects
 ```
-python venv venv
+python -m venv venv
 source venv/bin/activate
 ``` 
-#### 4. Install dependencies
+#### 4. Install dependencies and project
 ```
 pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Updating
 ```
-cd myrpojectsdir/wdwrap
+cd ~/src/wdwrap
 git pull
 pip install -r requirements.txt
 ```
 
 ## Running GUI
 ```
-cd myrpojectsdir/wdwrap 
+cd ~/src/wdwrap 
 source venv/bin/activate
-pyhon wdwrap/qtgui/wd.py
+python wdwrap/qtgui/wd.py
 ```
 
 #### Server extension for jupiter GUI:
