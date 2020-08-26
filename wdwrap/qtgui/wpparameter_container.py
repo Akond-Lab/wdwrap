@@ -57,15 +57,11 @@ class WdParameterContainer(Container):
             pass
         return ret
 
-    def values_choice(self, column):
-        if column == 'value' and self.wdpar.help_val:
-            items = list(self.wdpar.help_val.items())
-            values = [k           for k, v in items]
-            labels = [f'{k}: {v}' for k, v in items]
-            return values, labels
+    def values_choice(self, column='value'):
+        if column == 'value':
+            return self.wdpar.values_choice()
         else:
             return None, None
-
 
 
     def set_data(self, column: str, role: int, data):

@@ -6,6 +6,14 @@ from typing import Optional, Callable
 from PySide2.QtCore import QObject
 from traitlets import HasTraits
 
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('qt-model connector')
+    return _logger
+
 
 class ModelConnector:
     """Abstract base for model connectors - connects controls widget to some implementation of the model
@@ -14,12 +22,14 @@ class ModelConnector:
     subclass.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, view_to_model: Optional[Callable] = None, model_to_view: Optional[Callable] = None) -> None:
         super().__init__()
         self.view_slot = None
         self.view_signal = None
         self.disabling_semaphore = Lock()
         self._view_singal_handler = lambda value: self._on_view_signal(value)
+        self.view_to_model: Callable = (lambda x: x) if view_to_model is None else view_to_model
+        self.model_to_view: Callable = (lambda x: x) if model_to_view is None else model_to_view
 
     @abstractmethod
     def set_model_value(self, value):
@@ -30,7 +40,7 @@ class ModelConnector:
         """To be called from subclass"""
         if self.disabling_semaphore.acquire(blocking=False):
             try:
-                self.view_slot(value)
+                self.view_slot(self.model_to_view(value))
             finally:
                 self.disabling_semaphore.release()
 
@@ -49,7 +59,7 @@ class ModelConnector:
     def _on_view_signal(self, value):
         if self.disabling_semaphore.acquire(blocking=False):
             try:
-                self.set_model_value(value)
+                self.set_model_value(self.view_to_model(value))
             finally:
                 self.disabling_semaphore.release()
 
@@ -91,8 +101,9 @@ class QObjectModelConnector(ModelConnector):
 
 class PythonPropertyConnector(ModelConnector):
     """Model connectors - connects controls widget to ordinary python object's property, no model value observing"""
-    def __init__(self, property_name: Optional[str] = None) -> None:
-        super().__init__()
+    def __init__(self, property_name: Optional[str] = None,
+                 view_to_model: Optional[Callable] = None, model_to_view: Optional[Callable] = None) -> None:
+        super().__init__(view_to_model, model_to_view)
         self.model_object: Optional[HasTraits] = None
         self.model_property: Optional[str] = property_name
 
@@ -114,8 +125,10 @@ class PythonPropertyConnector(ModelConnector):
 class PythonMethodConnector(ModelConnector):
     """Model connectors - connects controls widget to ordinary python object's method (getter),
     R/O and no model observing"""
-    def __init__(self, method_name: Optional[str] = None, **method_kwargs) -> None:
-        super().__init__()
+    def __init__(self, method_name: Optional[str] = None,
+                 view_to_model: Optional[Callable] = None, model_to_view: Optional[Callable] = None,
+                 **method_kwargs) -> None:
+        super().__init__(view_to_model, model_to_view)
         self.model_object: Optional[HasTraits] = None
         self.model_method: Optional[str] = method_name
         self.model_method_kwargs = method_kwargs
@@ -135,23 +148,27 @@ class PythonMethodConnector(ModelConnector):
 
 class TraitletsModelConnector(ModelConnector):
     """Model connectors - connects controls widget to some `traitlets` object"""
-    def __init__(self, property_name: Optional[str] = None) -> None:
-        super().__init__()
+    def __init__(self, property_name: Optional[str] = None,
+                 view_to_model: Optional[Callable] = None, model_to_view: Optional[Callable] = None) -> None:
+        super().__init__(view_to_model, model_to_view)
         self._handler = lambda change: self._on_model_value_changed(change)
         self.model_object: Optional[HasTraits] = None
         self.model_property: Optional[str] = property_name
 
     def connect_model(self, model_object: HasTraits, property_name: Optional[str] = None):
         if self.model_object is not None:
-            self.model_object.unobserve(self._handler)
+            try:
+                self.model_object.unobserve(self._handler)
+            except (AttributeError, ValueError):
+                pass
         self.model_object = model_object
         if property_name is not None:
             self.model_property = property_name
-        self.model_object.observe(self._handler, [self.model_property])
         try:
+            self.model_object.observe(self._handler, [self.model_property])
             self.set_view_value(getattr(self.model_object, self.model_property))
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            logger().exception('Can not connect to or set value of model object', e)
 
     def disconnect(self):
         super().disconnect()

@@ -7,7 +7,7 @@
 [ ] calc LC manually
 [ ] RMSE calculation and display
 [ ] project file
-[ ] parameter details
+[+] parameter details
 [ ] proper refresh of segments table on item change
 [ ] order of panels / default focused panel
 [ ] favotites

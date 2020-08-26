@@ -103,6 +103,10 @@ class Parameter(HasTraits):
     # def __format__(self, format_spec: str) -> str:
     #     return ('{:' + format_spec + '}').format(self)
 
+    def values_choice(self):
+        return None, None
+
+
     @classmethod
     def format(cls, val, fmt):
         return fmt.format(val)
@@ -112,6 +116,9 @@ class Parameter(HasTraits):
 
     def is_controlling(self):
         return bool(self.flags & ParFlag.controlling)
+
+    def is_fitable(self):
+        return bool(self.flags & ParFlag.fittable)
 
     def from_str(self, val):
         self.val = self.scan_str(val)
@@ -167,4 +174,14 @@ class IntParameter(Parameter):
             return str(self.val)
         else:
             return self.help_val[self.val]
+
+    def values_choice(self):
+        if self.help_val:
+            items = list(self.help_val.items())
+            values = [k           for k, v in items]
+            labels = [f'{k}: {v}' for k, v in items]
+            return values, labels
+        else:
+            return None, None
+
 

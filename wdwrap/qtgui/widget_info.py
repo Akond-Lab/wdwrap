@@ -1,18 +1,23 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+import typing
 from threading import Lock
 from typing import Optional
 
-from PySide2.QtCore import Slot, Signal
+import PySide2
+from PySide2.QtCore import Slot, Signal, Qt
 from PySide2.QtWidgets import QWidget, QVBoxLayout, QLabel, QTabWidget, QGroupBox, QTableWidget, QTableWidgetItem, \
-    QHBoxLayout, QToolButton, QCheckBox, QFormLayout, QLineEdit, QPushButton, QTextEdit
+    QHBoxLayout, QToolButton, QCheckBox, QFormLayout, QLineEdit, QPushButton, QTextEdit, QStackedLayout, QComboBox, \
+    QDoubleSpinBox
 
 from wdwrap.curves import WdGeneratedValues
+from wdwrap.param import Parameter
 from wdwrap.qtgui.container import Container, ParentColumnContainer
 from wdwrap.qtgui.model_connector import TraitletsModelConnector, connected_widget, QObjectModelConnector, \
     PythonPropertyConnector, PythonMethodConnector
 from wdwrap.qtgui.model_curves import CurveValuesContainer, CurveGeneratedContainer, CurveContainer
 from wdwrap.qtgui.widget_colorpicker import SelectColorButton
 from wdwrap.qtgui.widget_pandas import WidgetPandas
+from wdwrap.qtgui.widget_wdparameter import WdParameterMinEdit, WdParameterMaxEdit, WdParameterValueEdit
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
 _logger = None
@@ -58,17 +63,69 @@ class NoItemPage(DetailsPageBase):
         self.setLayout(layout)
 
 class WdParameterPage(DetailsPageBase):
+    class NonexpandableStackedLayout(QStackedLayout):
+
+        def __init__(self, expand=0, parent=None):
+            self.expand = expand
+            super().__init__(parent)
+
+        def expandingDirections(self):
+            return self.expand
+
     def __init__(self, parent=None):
         super().__init__(parent, 'wd parameter')
-        layout = QVBoxLayout()
-        self.name = connected_widget(QLineEdit, PythonMethodConnector('name'), 'setText', None)
-        self.help_str = connected_widget(QTextEdit, PythonPropertyConnector('help_str'), 'setText', None)
-        self.doc = connected_widget(QTextEdit, PythonPropertyConnector('doc'), 'setText', None)
-        layout.addWidget(self.name)
-        layout.addWidget(self.help_str)
-        layout.addWidget(self.doc)
+        self.wdparameter: Optional[Parameter] = None
 
-        self.setLayout(layout)
+        self.layout = QVBoxLayout()
+        self.name: QLabel = connected_widget(QLabel, PythonMethodConnector('name'), 'setText', None)
+        self.name.setTextFormat(Qt.RichText)
+        self.name.setStyleSheet('font-weight: bold')
+        self.help_str = connected_widget(QLabel, PythonPropertyConnector('help_str'), 'setText', None)
+        self.doc = connected_widget(QTextEdit, PythonPropertyConnector('doc'), 'setText', None)
+
+        self.grp = QGroupBox('Value')
+        self.grp_layout1 = QHBoxLayout()
+        self.grp_layout11 = QVBoxLayout()
+        # self.slayout_val = self.NonexpandableStackedLayout(expand=Qt.Horizontal)
+        self.val = WdParameterValueEdit()
+        self.val.setStatusTip('Current value')
+        # self.slayout_val.addWidget(self.val_number)
+        self.grp_layout11.addWidget(self.val)
+        # self.grp_layout11.addWidget(self.val_number)
+        self.fit: QCheckBox = connected_widget(QCheckBox, TraitletsModelConnector('fix'), 'setChecked', 'toggled')
+        self.fit.setText('fixed')
+        self.fit.setStatusTip('Whether value of this parameter is excluded from adjustment when fitting')
+        self.grp_layout11.addWidget(self.fit)
+        # self.grp_layout11.addStretch()
+        self.grp_layout1.addLayout(self.grp_layout11)
+        self.grp_layout12 = QFormLayout()
+        # self.val_min: QLineEdit = connected_widget(QLineEdit,
+        #                                 TraitletsModelConnector('val_min', model_to_view=str, view_to_model=float),
+        #                                 'setText', 'textEdited')
+        self.val_min = WdParameterMinEdit()
+        self.val_max = WdParameterMaxEdit()
+        self.grp_layout12.addRow('min', self.val_min)
+        self.grp_layout12.addRow('max', self.val_max)
+        # self.grp_layout12.addWidget(QLabel('max, min are used as boundaries in fitting'))
+        self.grp_layout1.addLayout(self.grp_layout12)
+        self.grp.setLayout(self.grp_layout1)
+
+        self.layout.addWidget(self.name)
+        self.layout.addWidget(self.help_str)
+        self.layout.addWidget(self.grp)
+        self.layout.addWidget(self.doc)
+
+        self.setLayout(self.layout)
+        pass
+
+
+    # @Slot(bool)
+    # def _on_fit_view_change(self, fit: bool):
+    #     self.property.fix = not fit
+    #
+    # def _on_fit_model_change(self, fit: bool):
+    #     self.property.fix = not fit
+    #
 
     def is_active_for_item(self, item):
         """Should return item or None if not active"""
@@ -79,13 +136,27 @@ class WdParameterPage(DetailsPageBase):
 
     def item_changed(self, previous_item: Container):
         super().item_changed(previous_item)
-        try:
-            property = self.item.content
-            self.name.model_connector.connect_model(property)
-            self.help_str.model_connector.connect_model(property)
-            self.doc.model_connector.connect_model(property)
-        except AttributeError:
-            pass
+        if self.enabled:
+            try:
+                self.wdparameter: Parameter = self.item.content
+                try:
+                    self.wdparameter.unobserve(self._value_handler)
+                except:
+                    pass
+                self.name.model_connector.connect_model(self.wdparameter)
+                self.help_str.model_connector.connect_model(self.wdparameter)
+                self.doc.model_connector.connect_model(self.wdparameter)
+                self.fit.model_connector.connect_model(self.wdparameter)
+                self.val.set_parameter(self.wdparameter)
+                self.val_min.set_parameter(self.wdparameter)
+                self.val_max.set_parameter(self.wdparameter)
+                fittable = self.wdparameter.is_fitable()
+                self.fit.setEnabled(fittable)
+                self.val_min.setEnabled(fittable)
+                self.val_max.setEnabled(fittable)
+
+            except AttributeError:
+                pass
 
 class DataPage(DetailsPageBase):
     def __init__(self, parent=None):

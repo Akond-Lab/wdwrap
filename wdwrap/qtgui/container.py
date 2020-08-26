@@ -54,7 +54,7 @@ class Container(QObject):
     def flags(self, column: str, flags):
         return flags
 
-    def values_choice(self, column):
+    def values_choice(self, column='value'):
         return None, None
 
 class PropertiesAccessContainer(Container):
@@ -171,7 +171,7 @@ class ParentColumnContainer(Container):
         else:
             return super().flags(column=column, flags=flags)
 
-    def values_choice(self, column):
+    def values_choice(self, column='value'):
         if column == self.data_column:  # ask parent
             return self.parent().values_choice(column=self.parents_column)
         else:
