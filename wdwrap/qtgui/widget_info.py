@@ -12,10 +12,12 @@ from PySide2.QtWidgets import QWidget, QVBoxLayout, QLabel, QTabWidget, QGroupBo
 from wdwrap.curves import WdGeneratedValues
 from wdwrap.param import Parameter
 from wdwrap.qtgui.container import Container, ParentColumnContainer
+from wdwrap.qtgui.dialog_dataopen import DataOpenDialog, ObservedCurveDataOpenDialog
 from wdwrap.qtgui.model_connector import TraitletsModelConnector, connected_widget, QObjectModelConnector, \
     PythonPropertyConnector, PythonMethodConnector
 from wdwrap.qtgui.model_curves import CurveValuesContainer, CurveGeneratedContainer, CurveContainer
 from wdwrap.qtgui.widget_colorpicker import SelectColorButton
+from wdwrap.qtgui.widget_curvekindlabel import CurveKindLabel
 from wdwrap.qtgui.widget_pandas import WidgetPandas
 from wdwrap.qtgui.widget_wdparameter import WdParameterMinEdit, WdParameterMaxEdit, WdParameterValueEdit
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
@@ -197,8 +199,10 @@ class CurveMainPage(DetailsPageBase):
         grp_layout1.addRow('File', self.filename)
         grp_layout.addLayout(grp_layout1)
         grp_layout2 = QVBoxLayout()
-        self.kind_label = QLabel('?')
+        self.kind_label = CurveKindLabel()
+        self.kind_label.setStatusTip('Change band by setting IBAND curve specific parameter in synthetic curve tree')
         self.load_button = QPushButton('Load')
+        self.load_button.clicked.connect(self.load_data_dialog)
         grp_layout2.addWidget(self.kind_label)
         grp_layout2.addWidget(self.load_button)
         grp_layout.addLayout(grp_layout2)
@@ -227,14 +231,10 @@ class CurveMainPage(DetailsPageBase):
         # self.del_segment_button.clicked.connect(self._on_segment_del_clicked)
 
 
-    # @Slot(bool)
-    # def _on_segment_add_clicked(self, selected: bool):
-    #     """on delete segment button"""
-    #     row = self.table_segments.currentRow()
-    #     if row is None:
-    #         return
-    #     self.gen_curve.segment_split(row)
-    #     self.populate_segments()
+    @Slot(bool)
+    def load_data_dialog(self, selected: bool):
+        dialog = ObservedCurveDataOpenDialog(self.item.content, parent=self)
+        dialog.open()
 
     def is_active_for_item(self, item):
         """Should return item or None if not active"""
@@ -254,6 +254,7 @@ class CurveMainPage(DetailsPageBase):
                     self.curvename.model_connector.connect_model(self.item, self.item.setObjectName,
                                                                  self.item.objectNameChanged, self.item.objectName())
                     self.filename.model_connector.connect_model(self.curve.obs_values)
+                    self.kind_label.connect_model(self.item)
                 else:
                     self.curve = None
             except AttributeError:

@@ -6,7 +6,7 @@ from PySide2.QtCore import QModelIndex, Qt
 from PySide2.QtWidgets import QStyledItemDelegate, QComboBox
 
 from wdwrap.curves import ObservedValues
-from wdwrap.qtgui.dataopendialog import DataOpenDialog
+from wdwrap.qtgui.dialog_dataopen import DataOpenDialog
 from wdwrap.qtgui.delegate_parameters import ParametersTableDelegate
 
 

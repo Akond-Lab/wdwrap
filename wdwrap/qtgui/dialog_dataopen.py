@@ -1,4 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+import os
 import typing
 from functools import partial
 
@@ -10,6 +11,7 @@ from PySide2.QtGui import QIntValidator
 from PySide2.QtWidgets import QDialog, QFormLayout, QPushButton, QTableView, QFileDialog, QDialogButtonBox, \
     QVBoxLayout, QGroupBox, QLineEdit, QTextEdit, QHBoxLayout
 
+from wdwrap.curves import WdCurve
 from wdwrap.io import DataFrameReader
 from wdwrap.qtgui.model_pandas import PandasDataFrameModel
 
@@ -178,4 +180,23 @@ class DataOpenDialog(QDialog):
         self.buttonbox.button(QDialogButtonBox.Ok).setEnabled(self.is_ok())
 
 
+class ObservedCurveDataOpenDialog(DataOpenDialog):
+    def __init__(self, curve_item: WdCurve, parent=None):
+        self.curve_item = curve_item
+        if curve_item.is_rv():
+            expected_columns=['hjd', 'rv1', 'rv1_e', 'rv2', 'rv2_e']
+            all_columns=['hjd', 'ph', 'rv1', 'rv1_e', 'rv2', 'rv2_e', 'instrument']
+            obligatory_columns=[('hjd', 'ph'), 'rv1', 'rv2']
+        else:
+            expected_columns=['hjd', 'mag']
+            all_columns=['hjd', 'ph', 'mag', 'mag_e']
+            obligatory_columns=[('hjd', 'ph'), 'mag']
+        super().__init__(expected_columns, obligatory_columns, all_columns, parent)
+        self.accepted.connect(self.on_accepted)
 
+    @Slot()
+    def on_accepted(self):
+        file = self.file
+        if file:
+            f = os.path.relpath(file)
+            self.curve_item.obs_values.filename = f, self.df
