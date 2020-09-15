@@ -1,7 +1,7 @@
 [+] add LC/RV curve
 [+] let the curve refresh after changing cuve-specific parameter
 [+] delete LC/RV curve
-[.] main curve panel
+[+] main curve panel
 [+] fix - curve displays wired after adding
 [ ] synthetic curve parmaetes panel
 [ ] calc LC manually

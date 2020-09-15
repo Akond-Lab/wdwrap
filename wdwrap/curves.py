@@ -227,6 +227,8 @@ class ConvertedValues(CurveValues):
 
 class ObservedValues(ConvertedValues):
     _filename = Unicode(default_value='<none>')
+    # sigma = Float(default_value=1.0)
+    # noise_scaling_exponent = Float()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

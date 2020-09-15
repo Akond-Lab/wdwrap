@@ -37,9 +37,9 @@ class DetailsPageBase(QWidget):
         self.enabled = False
         self.label = label
 
-    def is_active_for_item(self, item):
-        """Should return item or None if not active"""
-        return None
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
+        return False, None
 
     @Slot(Container)
     def setItem(self, item: Container):
@@ -63,6 +63,11 @@ class NoItemPage(DetailsPageBase):
         self.label1 = QLabel('Select curve to see details')
         layout.addWidget(self.label1)
         self.setLayout(layout)
+
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
+        return item is None, None
+
 
 class WdParameterPage(DetailsPageBase):
     class NonexpandableStackedLayout(QStackedLayout):
@@ -120,7 +125,6 @@ class WdParameterPage(DetailsPageBase):
         self.setLayout(self.layout)
         pass
 
-
     # @Slot(bool)
     # def _on_fit_view_change(self, fit: bool):
     #     self.property.fix = not fit
@@ -129,12 +133,12 @@ class WdParameterPage(DetailsPageBase):
     #     self.property.fix = not fit
     #
 
-    def is_active_for_item(self, item):
-        """Should return item or None if not active"""
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
         if isinstance(item, WdParameterContainer):
-            return item
+            return True, item
         else:
-            return None
+            return False, None
 
     def item_changed(self, previous_item: Container):
         super().item_changed(previous_item)
@@ -168,12 +172,17 @@ class DataPage(DetailsPageBase):
         layout.addWidget(self.pandas)
         self.setLayout(layout)
 
-    def is_active_for_item(self, item):
-        """Should return item or None if not active"""
-        if isinstance(item, CurveValuesContainer):
-            return item
-        else:
-            return None
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
+        try:
+            if isinstance(item, CurveValuesContainer):
+                return True, item
+            elif isinstance(item.parent(), CurveValuesContainer):
+                return True, item.parent()
+            else:
+                return False, None
+        except AttributeError:
+            return False, None
 
     def item_changed(self, previous_item: Container):
         super().item_changed(previous_item)
@@ -236,12 +245,12 @@ class CurveMainPage(DetailsPageBase):
         dialog = ObservedCurveDataOpenDialog(self.item.content, parent=self)
         dialog.open()
 
-    def is_active_for_item(self, item):
-        """Should return item or None if not active"""
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
         if isinstance(item, CurveContainer):
-            return item
+            return True, item
         else:
-            return None
+            return False, None
 
     def item_changed(self, previous_item: Container):
         """when curved item for which details are displayed hve been changed"""
@@ -295,12 +304,17 @@ class GeneratedCurvePage(DetailsPageBase):
         self.add_segment_button.clicked.connect(self._on_segment_add_clicked)
         self.del_segment_button.clicked.connect(self._on_segment_del_clicked)
 
-    def is_active_for_item(self, item):
-        """Should return item or None if not active"""
-        if isinstance(item, CurveGeneratedContainer):
-            return item
-        else:
-            return None
+    def is_active_for_item(self, item: Optional[Container]) -> (bool, Optional[Container]):
+        """Returns pair: should_be_active and item (may be e.g. parent of provided item)"""
+        try:
+            if isinstance(item, CurveGeneratedContainer):
+                return True, item
+            elif isinstance(item.parent(), CurveGeneratedContainer):
+                return True, item.parent()
+            else:
+                return False, None
+        except AttributeError:
+            return False, None
 
 
     @Slot(QTableWidgetItem)
@@ -410,7 +424,7 @@ class InfoPanelWidget(QWidget):
         self.all_tabs.append(NoItemPage())
         for tab in self.all_tabs:
             self.tabs_widget.addTab(tab, tab.label)
-            self.itemChanged.connect(tab.setItem)
+            # self.itemChanged.connect(tab.setItem)
 
     @Slot(Container)
     def setItem(self, item: Container):
@@ -421,18 +435,13 @@ class InfoPanelWidget(QWidget):
             self._selectTabs()
             self.itemChanged.emit(item)
 
-    def _should_be_active(self, page: DetailsPageBase):
-        if isinstance(page, NoItemPage):
-            return self.item is None
-        else:
-            return page.is_active_for_item(self.item) is not None
-
 
     def _selectTabs(self):
         # remove
         for i in range(self.tabs_widget.count()):
             page: DetailsPageBase = self.tabs_widget.widget(i)
-            active = self._should_be_active(page)
+            active, item = page.is_active_for_item(self.item)
             page.enabled = active
+            page.setItem(item)
             self.tabs_widget.setTabVisible(i, active)
 
