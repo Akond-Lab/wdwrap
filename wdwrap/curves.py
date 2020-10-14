@@ -75,6 +75,37 @@ class CurvePhaser(CurveTransformer):
         ndf['ph'] = ph
         return ndf
 
+class CurveLightWeigher(CurveTransformer):
+    """Adds/Updates `weight*`  column(s) """
+    intrinsic_weight = Float(1.0)
+    sigma = Float(default_value=1.0)
+    noise_scaling_exponent = Float(min=0.0, max=1.0)
+    light_normalization_ratio = Float(default_value=1.0)
+
+    def __init__(self, *args, col_magnitude='mag', **kwargs):
+        self.col_magnitude = col_magnitude
+        super().__init__(*args, **kwargs)
+
+    def transform(self, df):
+        try:
+            normalized_light = self.light_normalization_ratio * 10.0**(-0.4*df[self.col_magnitude])
+            # ph = ((df[self.col_hjd] - self.hjd0) / self.period + self.delta) % 1.0
+            flux_weights = 1.0 / normalized_light**(2 * self.noise_scaling_exponent)
+            sigma_weights = np.full_like(flux_weights, 1e-4 / self.sigma**2)
+            intrinsic_weights = np.full_like(flux_weights, self.intrinsic_weight)
+            weights = flux_weights * sigma_weights * intrinsic_weights
+        except KeyError:  # no mag column
+            return df
+        ndf = df.copy()
+        # TODO: save only result weight, get rid of constant sigma_weights and intrinsic_weights (performance)
+        ndf['weight'] = weights
+        ndf['normalized_light'] = normalized_light
+        ndf['weight_intrinsic'] = intrinsic_weights
+        ndf['weight_flux'] = flux_weights
+        ndf['weight_sigma'] = sigma_weights
+        return ndf
+
+
 
 class CurveResampler(CurveTransformer):
     """Resamples original dataframe into `k` bins, from min to max
@@ -196,11 +227,13 @@ class ConvertedValues(CurveValues):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cached_df = None
-        self.transformers = OrderedDict([
-            ('phaser', CurvePhaser()),
-            ('resampler', CurveResampler())
-        ])
+        self.transformers = OrderedDict()
+        self.add_transformers()
         self.scan_transformers()
+
+    def add_transformers(self):
+        self.transformers['phaser'] = CurvePhaser()
+        self.transformers['resampler'] = CurveResampler()
 
     def scan_transformers(self):
         for t in self.transformers.values():
@@ -227,11 +260,13 @@ class ConvertedValues(CurveValues):
 
 class ObservedValues(ConvertedValues):
     _filename = Unicode(default_value='<none>')
-    # sigma = Float(default_value=1.0)
-    # noise_scaling_exponent = Float()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def add_transformers(self):
+        super().add_transformers()
+        self.transformers['weigher'] = CurveLightWeigher()
 
     def load(self, fd):
         pass
@@ -256,6 +291,10 @@ class ObservedValues(ConvertedValues):
     @property
     def resampler(self) -> CurveResampler:
         return self.transformers['resampler']
+
+    @property
+    def weigher(self) -> CurveLightWeigher:
+        return self.transformers['weigher']
 
 
 class GeneratedValues(CurveValues):
@@ -294,6 +333,14 @@ class GeneratedValues(CurveValues):
 
     def cancel(self):
         pass
+
+    @property
+    def normalization_coefficient(self):
+        try:
+            return self.df['Lcombined'][0] / self.df['Lnorm'][0]
+        except LookupError:
+            return 1.0
+
 
 
 class WdGeneratedValues(GeneratedValues):
@@ -544,7 +591,7 @@ class WdCurve(Curve):
         if bundle is None:
             bundle = Bundle.default_binary()
         self.gen_values = WdGeneratedValues(bundle=bundle, rv=self.is_rv())
-
+        self.gen_values.observe(lambda change: self.on_generated_status_change(change), 'status')
         self.read_bundle(bundle)
 
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
@@ -560,9 +607,16 @@ class WdCurve(Curve):
     def on_hjd0_change(self, change):
         self.obs_values.phaser.hjd0 = float(change.new)
 
+    def on_generated_status_change(self, change):
+        if change.new == self.gen_values.STATUS.Ready:
+            self._propagate_normalization_coefficient()
+
     @classmethod
     def is_rv(cls): return False
 
+    def _propagate_normalization_coefficient(self):
+        coeff = self.gen_values.normalization_coefficient
+        self.obs_values.weigher.light_normalization_ratio = coeff
 
 class LightCurve(WdCurve):
     @classmethod

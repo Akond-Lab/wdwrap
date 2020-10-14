@@ -2,6 +2,7 @@
 
 from setuptools import setup, find_packages
 
+from wdwrap.version import __version__
 
 with open('README.md') as f:
     readme = f.read()
@@ -11,7 +12,7 @@ with open('LICENSE.md') as f:
 
 setup(
     name='wdwrap',
-    version='0.2.0',
+    version=__version__,
     description='WD code wrapper',
     long_description=readme,
     author='Mikolaj Kaluszynski (AkondLab, CAMK)',
