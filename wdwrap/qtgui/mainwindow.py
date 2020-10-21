@@ -1,4 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+import os
 
 import PySide2
 from PySide2.QtCore import QFile, Qt, QTextStream, QSettings, Slot
@@ -32,6 +33,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, parent=None, flags=None):
         super().__init__(parent)
+        self.project_filename = None
 
         self.project_widget = ProjectWidget(self)
         self.setCentralWidget(self.project_widget)
@@ -103,6 +105,41 @@ class MainWindow(QMainWindow):
             self.project_widget.project.save_bundle(file_name)
             logger().info(f'lc.in file saved, path: {file_name}')
 
+    @Slot()
+    def open_prj(self):
+        filename, _ = QFileDialog.getOpenFileName(self, "Open Project", None, "WD Wrapper Project (*.wdw)")
+        if filename:
+            if self.open_prj_from_file(filename):
+                self.setWindowTitle(os.path.basename(filename))
+                self.project_filename = filename
+
+    @Slot()
+    def save_prj_as(self):
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Project", None, "WD Wrapper Project (*.wdw)")
+        if filename:
+            self.project_filename = filename
+            self.setWindowTitle(os.path.basename(filename))
+            self.save_prj_to_file(self.project_filename, mode='gui save as')
+
+    @Slot()
+    def save_prj(self):
+        if self.project_filename is None:
+            self.save_prj_as()
+        else:
+            self.save_prj_to_file(self.project_filename, mode='gui save')
+
+    def save_prj_to_file(self, filename, mode):
+        self.project_widget.project.save_project(filename, mode=mode)
+        logger().info(f'Project saved, path: {filename}')
+
+    def open_prj_from_file(self, filename):
+        if self.project_widget.project.open_project(filename):
+            logger().info(f'Project opened, path: {filename}')
+            return True
+        else:
+            logger().error(f'Project opening failed, path: {filename}')
+            return False
+
     def save(self):
         filename, _ = QFileDialog.getSaveFileName(self,
                                                   "Choose a file name", '.', "HTML (*.html *.htm)")
@@ -158,10 +195,21 @@ class MainWindow(QMainWindow):
     #     self.console.show(window=self, )
 
     def createActions(self):
-        self.openlcinAct = QAction(IconFactory.getIcon('note_add'),
-                               "&Open lc.in", self, shortcut=QKeySequence.Open, statusTip="Open lc.in file", triggered=self.open_lcin)
-        self.savelcinAct = QAction(IconFactory.getIcon('note_add'),
-                               "&Save lc.in as", self, shortcut=QKeySequence.Save, statusTip="Save lc.in file", triggered=self.save_lcin)
+        self.openlcinAct = QAction(IconFactory.getIcon('open_lc'), "&Open lc.in", self,
+                                   shortcut=QKeySequence.Open, statusTip="Open lc.in file", triggered=self.open_lcin)
+        self.savelcinAct = QAction(IconFactory.getIcon('save_lc'),  "&Save lc.in as", self,
+                                   shortcut=QKeySequence.Save, statusTip="Save lc.in file", triggered=self.save_lcin)
+        self.openProjectAct = QAction(IconFactory.getIcon('open_prj'), "Open &project", self,
+                                      statusTip="Open project", triggered=self.open_prj)
+        self.saveProjectAct = QAction(IconFactory.getIcon('save_prj'), "S&ave project", self,
+                                      statusTip="Save project", triggered=self.save_prj)
+        self.saveProjectAsAct = QAction(IconFactory.getIcon('save_prj'), "S&ave project as...", self,
+                                        statusTip="Save project to new file", triggered=self.save_prj_as)
+        self.autoSaveProjectAct = QAction(None, "Auto save project", self,
+                                          statusTip="Automatically save project")
+        self.autoSaveProjectAct.setCheckable(True)
+        self.autoSaveProjectAct.setChecked(False)
+
         self.addLightCurveAct = QAction(IconFactory.getIcon('note_add'),
                                "Add &LC", self, statusTip="Add light curve", triggered=self.project_widget.add_lc)
         self.addRvCurveAct = QAction(IconFactory.getIcon('note_add'),
@@ -191,6 +239,12 @@ class MainWindow(QMainWindow):
         self.fileMenu.addAction(self.savelcinAct)
 
         self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.openProjectAct)
+        self.fileMenu.addAction(self.saveProjectAct)
+        self.fileMenu.addAction(self.saveProjectAsAct)
+        self.fileMenu.addAction(self.autoSaveProjectAct)
+
+        self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.quitAct)
 
         self.curvesMenu = self.menuBar().addMenu("&Curves")
@@ -212,6 +266,8 @@ class MainWindow(QMainWindow):
     def createToolBars(self):
         self.fileToolBar = self.addToolBar("File Toolbar")
         self.fileToolBar.setObjectName("FILE TOOLBAR")
+        self.fileToolBar.addAction(self.openProjectAct)
+        self.fileToolBar.addAction(self.saveProjectAct)
         self.fileToolBar.addAction(self.openlcinAct)
         self.fileToolBar.addAction(self.savelcinAct)
 

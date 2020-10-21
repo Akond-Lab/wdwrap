@@ -41,6 +41,16 @@ class ParameterSet(OrderedDict):
     def copy(self):
         raise NotImplementedError('Use clone() instead')
 
+    def to_dict(self):
+        ret = {x.name(): x.to_dict() for x in self.values()}
+        return ret
+
+    def from_dict(self, d):
+        for k, v in d.items():
+            self[k].from_dict(v)
+
+
+
     def update_filtered(self, source, filter_condition=filter_every):
         source = source.clone()
         filtered = {k: v for k, v in source.items() if filter_condition(v)}

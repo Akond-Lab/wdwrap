@@ -77,6 +77,16 @@ class Bundle(ParameterSet):
         r = LcRunner()
         return r.run(self)
 
+    def to_dict(self):
+        ret = {
+            'wd_version': self.wdversion,
+            'parameters': super().to_dict()
+        }
+        return ret
+
+    def from_dict(self, d):
+        super().from_dict(d['parameters'])
+
     def run_compute(self):
         """Alias of `lc()`"""
         self.lc()

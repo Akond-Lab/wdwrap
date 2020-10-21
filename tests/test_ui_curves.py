@@ -13,8 +13,9 @@ class TestUiCurves(unittest.TestCase):
         from wdwrap.curves import LightCurve, VelocCurve
         lc = LightCurve()
         vc = VelocCurve()
-        self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
-        self.assertRaises(LookupError, lambda: lc.wdparams.param_dict['XLAT'])
+        # wdparams has been removed
+        # self.assertIsNotNone(lc.wdparams.param_dict['EL3'])
+        # self.assertRaises(LookupError, lambda: lc.wdparams.param_dict['XLAT'])
 
     def test_curve_generation(self):
         from wdwrap.curves import LightCurve

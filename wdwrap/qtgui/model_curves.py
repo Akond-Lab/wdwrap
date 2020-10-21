@@ -1,9 +1,9 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import logging
-from typing import Optional, List
+from typing import Optional, List, Mapping
 
 from PySide2.QtCore import Signal, Property, QObject
-from wdwrap.curves import WdCurve, GeneratedValues
+from wdwrap.curves import WdCurve, GeneratedValues, VelocCurve, LightCurve
 from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset
@@ -153,6 +153,11 @@ class CurvesModel(ContainersTreeModel):
             # del to_delete
             self.endResetModel()
 
+    def delete_all_curve_containers(self):
+        to_del = [c for c in self.curves_iter()]
+        for c in to_del:
+            self.delete_curve_container(c)
+
     def add_curve(self, curve: WdCurve, name: str = None):
         """Adds curve"""
         self.beginResetModel()
@@ -165,6 +170,21 @@ class CurvesModel(ContainersTreeModel):
         self._add_curve(curve, name)
         self.sort_curves()
         self.endResetModel()
+
+    def add_curves_from_dict(self, curves: Mapping):
+        try:
+            self.beginResetModel()
+            self.delete_all_curve_containers()
+            for name, c in curves.items():
+                if c['rv']:
+                    wdcurve = VelocCurve()
+                else:
+                    wdcurve = LightCurve()
+                wdcurve.from_dict(c)
+                self._add_curve(wdcurve, name)
+            self.sort_curves()
+        finally:
+            self.endResetModel()
 
     def _add_curve(self, curve: WdCurve, name: str):
         """Adds curve on the end of list, use sort_curves to restore proper order"""

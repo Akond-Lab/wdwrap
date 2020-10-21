@@ -1,9 +1,24 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
+"""
+Connecting widgets to the model objects
+
+By connecting Qt widgets to model objects using methods from this module, changes to the model value
+is automatically reflected in the widget (view), and user interaction with the widget sets model value.
+
+The general recipe is to make own widget class deriving from Qt widget of choice and `HasModelConnector`,
+then to use specific `ModelConnector` implementation (depending of your model object's broadcasting mechanism:
+Qt signals, traitlets observing...) to connect widget to the model.
+
+The `connected_widget` convenience factory method will produce widgets with connector for simple cases.
+"""
+import typing
 from abc import abstractmethod
 from threading import Lock
 from typing import Optional, Callable
 
+import PySide2
 from PySide2.QtCore import QObject
+from PySide2.QtWidgets import QAction
 from traitlets import HasTraits
 
 _logger = None
@@ -186,7 +201,7 @@ class TraitletsModelConnector(ModelConnector):
 
 
 class HasModelConnector:
-    """Base class for widgets implementing connectiong to the model via `ModelConnector` derived classes"""
+    """Base class for widgets implementing connecting to the model via `ModelConnector` derived classes"""
 
     def __init__(self) -> None:
         super().__init__()
@@ -212,8 +227,24 @@ class HasModelConnector:
     def get_slot_and_signal_for_view(self):
         return self.view_slot, self.view_signal
 
-def connected_widget(widget_class, connector_object, view_slot: str, view_signal: str, **kwargs):
-    """Factory function creating objects of class being subclass of `widget_class` and `HasModelConnector`"""
+class ConnectedCheckableAction(QAction, HasModelConnector):
+
+    def __init__(self, *args, **kwargs):
+        QAction.__init__(self, *args, **kwargs)
+        HasModelConnector.__init__(self)
+        self.setCheckable(True)
+
+
+def connected_widget(widget_class, connector_object, view_slot: str, view_signal: Optional[str], **kwargs):
+    """Factory function creating objects of class being subclass of `widget_class` and `HasModelConnector`
+
+    Examples
+    --------
+    Following code:
+        checkbox = connected_widget(QCheckBox, TraitletsModelConnector('my_flag'), 'setChecked', 'toggled')
+        checkbox.model_connector.connect_model(model_object)
+    creates checkbox connected to `model_object.my_flag`
+    """
     def _constructor(self):
         widget_class.__init__(self)
         HasModelConnector.__init__(self)

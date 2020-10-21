@@ -1,5 +1,5 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
-
+import tempfile
 import unittest
 
 
@@ -12,8 +12,8 @@ class ProjectTestCase(unittest.TestCase):
     def test_project_default_values(self):
         from wdwrap.jupyterui import Project
         p = Project()
-        self.assertIsNotNone(p.light_curves[0].wdparams['IBAND'])
-        self.assertIsNotNone(p.veloc_curves[0].wdparams['IBAND'])
+        # self.assertIsNotNone(p.light_curves[0].wdparams['IBAND'])
+        # self.assertIsNotNone(p.veloc_curves[0].wdparams['IBAND'])
         self.assertIsNotNone(p.parameters['MPAGE'])
         self.assertIsNotNone(p.parameters['YCL'])
 
@@ -58,3 +58,37 @@ class ProjectTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ProjectOpenSaveCase(unittest.TestCase):
+
+    @staticmethod
+    def generate_project_curves(p: 'Project'):
+        for c in p.curves_model.curves:  # ensure generated values are present
+            c.gen_values.refresh(wait=True)
+
+    def test_to_from_dict(self):
+        from wdwrap.qtgui.project import Project
+        p1 = Project()
+        p2 = Project()
+        p1.bundle['IBAND'] = 10
+        self.generate_project_curves(p1)
+        self.assertNotEqual(p1.bundle['IBAND'].val, p2.bundle['IBAND'].val)
+        d = p1.to_dict()
+        p2.from_dict(d)
+        self.assertEqual(p1.bundle['IBAND'].val, p2.bundle['IBAND'].val)
+
+    def test_to_from_project_file(self):
+        from wdwrap.qtgui.project import Project
+        p1 = Project()
+        p2 = Project()
+        p1.bundle['IBAND'] = 10
+        self.generate_project_curves(p1)
+        self.assertNotEqual(p1.bundle['IBAND'].val, p2.bundle['IBAND'].val)
+
+        # filename = tempfile.mktemp()
+        filename = '/tmp/test_to_from_project_file.wdw'
+        d = p1.save_project(filename, mode='unit test')
+        ret = p2.open_project(filename)
+        self.assertTrue(ret)
+        self.assertEqual(p1.bundle['IBAND'].val, p2.bundle['IBAND'].val)

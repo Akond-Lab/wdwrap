@@ -100,6 +100,22 @@ class Parameter(HasTraits):
             ret += '({:s})'.format(self.help_val[int(self)])
         return ret
 
+    def to_dict(self):
+        ret = {
+            'val': self.to_python(),
+            'fix': self.fix
+        }
+        if self.val_min is not None:
+            ret['min'] = self.val_min
+        if self.val_max is not None:
+            ret['max'] = self.val_max
+        return ret
+
+    def from_dict(self, d:dict):
+        for k in ['min', 'max', 'fix', 'val']:
+            v = d.get(k)
+            setattr(self, k, v)
+
     # def __format__(self, format_spec: str) -> str:
     #     return ('{:' + format_spec + '}').format(self)
 

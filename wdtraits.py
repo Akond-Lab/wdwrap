@@ -31,20 +31,21 @@ class WdParamTrait(HasTraits):
         # pclass = VGA
         self.pclass = pclass
         kwargs = {}
+        tags = {}
         if pclass.min is not None:
-            kwargs['min'] = pclass.min
+            tags['min'] = pclass.min
         if pclass.max is not None:
-            kwargs['max'] = pclass.max
+            tags['max'] = pclass.max
         kwargs['help'] = pclass.doc
         kwargs['allow_none'] = True
         kwargs['default_value'] = None
         if issubclass(pclass, FloatParameter):
-            self.add_traits(val=Float(**kwargs))
+            self.add_traits(val=Float(**kwargs).tag(**tags))
         elif issubclass(pclass, IntParameter):
             if pclass.help_val:  # enum
-                self.add_traits(val=Enum(values=pclass.help_val, **kwargs))
+                self.add_traits(val=Enum(values=pclass.help_val, **kwargs).tag(**tags))
             else:  # int
-                self.add_traits(val=Int(**kwargs))
+                self.add_traits(val=Int(**kwargs).tag(**tags))
         else:
             raise TypeError(f'No WdPramTrait for class {pclass} (IntParameter and FloatParameter supported) ')
         if pclass.flags & ParFlag.fittable:

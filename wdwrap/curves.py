@@ -1,24 +1,22 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import functools
 import math
+import random
 import threading
 from collections import OrderedDict
-import random
 from typing import Optional, List
 
 import numpy as np
 import pandas as pd
+from dask.distributed import Future
+from scipy.interpolate import CubicSpline
 from traitlets import HasTraits, Bool, Int, Float, Instance, Unicode
 
-from scipy.interpolate import CubicSpline
-from dask.distributed import Future
-
-from wdtraits import WdParamTraitCollection
 from wdwrap.bundle import Bundle
 from wdwrap.config import cfg
+from wdwrap.drivers import MPAGE
 from wdwrap.jobs import JobScheduler
 from wdwrap.param import ParFlag
-from wdwrap.drivers import MPAGE
 from wdwrap.parameters import ParameterSet
 
 """
@@ -47,6 +45,12 @@ class CurveTransformer(HasTraits):
 
     def transform(self, df):
         return df
+
+    def to_dict(self):
+        pass
+
+    def from_dict(self, d):
+        pass
 
 
 class CurvePhaser(CurveTransformer):
@@ -142,7 +146,6 @@ class CurveResampler(CurveTransformer):
 class CurveValues(HasTraits):
     df_version = Int()  # observe for transformed data change
     dataframe = Instance(pd.DataFrame, ())  # observe for original dataframe change
-    plot = Bool()
     # TODO implement linear approximator
     approx_order = Int(default_value=0)
     approx_method = Unicode(default_value='cubic-spline')
@@ -158,6 +161,26 @@ class CurveValues(HasTraits):
             self.dataframe = pd.DataFrame(columns=[self.indep_column, *self.dep_columns])
         self.observe(lambda change: self.get_approximators.invalidate_caches(),
                      ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
+
+    def to_dict(self):
+        return {
+            'approximation': {
+                'method': self.approx_method,
+                'periodic': self.approx_periodic,
+                'order': self.approx_order,
+            },
+            'indep_col': self.indep_column,
+            'dep_cols': list(self.dep_columns),
+        }
+
+
+    def from_dict(self, d):
+        apx = d['approximation']
+        self.approx_method = apx['method']
+        self.approx_periodic = apx['periodic']
+        self.approx_order = apx['order']
+        self.indep_column = d['indep_col']
+        self.dep_columns = set(d['dep_cols'])
 
     def terminal_clean_up(self):
         self.dataframe = pd.DataFrame()
@@ -219,6 +242,13 @@ class CurveValues(HasTraits):
     def empty(self):
         return self.n == 0
 
+    def df_to_dict(self):
+        return self.dataframe.to_dict(orient='split')
+
+    def df_from_dict(self, d):
+        df = pd.DataFrame(**d)
+        self.set_df(df)
+
 
 class ConvertedValues(CurveValues):
     """Keeps additional 'original' dataframe which is converted somehow into
@@ -230,6 +260,16 @@ class ConvertedValues(CurveValues):
         self.transformers = OrderedDict()
         self.add_transformers()
         self.scan_transformers()
+
+    def to_dict(self):
+        d = super().to_dict()
+        d['transformers'] = {k: v.to_dict() for k, v in self.transformers.items()}
+        return d
+
+    def from_dict(self, d):
+        super().from_dict(d)
+        for k, v in d['transformers'].items():
+            self.transformers[k].from_dict(v)
 
     def add_transformers(self):
         self.transformers['phaser'] = CurvePhaser()
@@ -268,6 +308,17 @@ class ObservedValues(ConvertedValues):
         super().add_transformers()
         self.transformers['weigher'] = CurveLightWeigher()
 
+    def to_dict(self):
+        d = super().to_dict()
+        d['file'] = self.filename
+        d['dataframe'] = self.df_to_dict()
+        return d
+
+    def from_dict(self, d):
+        super().from_dict(d)
+        self.df_from_dict(d['dataframe'])
+        self.filename = d['file']
+
     def load(self, fd):
         pass
 
@@ -277,6 +328,7 @@ class ObservedValues(ConvertedValues):
 
     @filename.setter
     def filename(self, val):
+        # for some UI simplification, val can be just filename or [filename, dataframe] pair
         df = None
         if isinstance(val, tuple):
             val, df = val
@@ -342,7 +394,6 @@ class GeneratedValues(CurveValues):
             return 1.0
 
 
-
 class WdGeneratedValues(GeneratedValues):
     segment_dividers_version = Int()
 
@@ -356,7 +407,7 @@ class WdGeneratedValues(GeneratedValues):
 
         n = cfg().getint('curves', 'default-segments')
         assert 0 < n <= 20
-        self.segment_dividers = list(np.linspace(0, 1, n + 1))
+        self.segment_dividers = [float(v) for v in np.linspace(0, 1, n + 1)]
         self.segment_data = [{'PHIN': bundle['PHIN'].val} for _ in range(n)]  # n identical (but not the same) dicts
         self.futures: List[Future] = []
         self.__handler_bundle_value_change = lambda change: self.on_bundle_value_change(change)
@@ -366,6 +417,24 @@ class WdGeneratedValues(GeneratedValues):
         self.parameters.observe(self.__handler_bundle_value_change, names=['val'],
                                 flags_all=ParFlag.curvedep)  # observe curve specific
         self.observe(self.__handler_invalidate, 'segment_dividers_version')
+
+    def to_dict(self):
+        d = super().to_dict()
+        d['wd_parameters'] = self.parameters.to_dict()
+        d['segments'] = {
+            'boundaries': self.segment_dividers,
+            'data': self.segment_data,
+        }
+        # do we  save generated values ?
+        d['dataframe'] = self.df_to_dict()
+        return d
+
+    def from_dict(self, d):
+        super().from_dict(d)
+        self.parameters.from_dict(d['wd_parameters'])
+        self.segment_dividers = d['segments']['boundaries']
+        self.segment_data = d['segments']['data']
+
 
     def terminal_clean_up(self):
         self.bundle.unobserve(self.__handler_bundle_value_change)
@@ -562,6 +631,17 @@ class Curve(HasTraits):
         self.gen_values = GeneratedValues()
         self.obs_values = ObservedValues()
 
+    def to_dict(self):
+        return {
+            'synthetic': self.gen_values.to_dict(),
+            'observed': self.obs_values.to_dict(),
+        }
+
+    def from_dict(self, d):
+        self.gen_values.from_dict(d['synthetic'])
+        self.obs_values.from_dict(d['observed'])
+
+
     # def get_points_generated(self, calc_at=None, generate=True):
     #     pass
     #
@@ -579,8 +659,8 @@ class Curve(HasTraits):
 
 
 class WdCurve(Curve):
-    wdparams = Instance(WdParamTraitCollection,
-                        kw={'flags_any': ParFlag.curvedep | ParFlag.curvepriv})
+    # wdparams = Instance(WdParamTraitCollection,
+    #                     kw={'flags_any': ParFlag.curvedep | ParFlag.curvepriv})
     plot = Bool(default_value=True)
     fit = Bool(default_value=False)
     color = Unicode('#000000')
@@ -594,8 +674,25 @@ class WdCurve(Curve):
         self.gen_values.observe(lambda change: self.on_generated_status_change(change), 'status')
         self.read_bundle(bundle)
 
+    def to_dict(self):
+        ret = {
+            'rv': self.is_rv(),
+            'plot': self.plot,
+            'color': self.color,
+            'fit': self.fit,
+        }
+        ret.update(super().to_dict())
+        return ret
+
+    def from_dict(self, d):
+        super().from_dict(d)
+        self.plot = d['plot']
+        self.fit = d['fit']
+        self.color = d['color']
+
+
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
-        self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
+        # self.wdparams.read_bundle(bundle=bundle, set_fit=set_fit)
         self.obs_values.phaser.period = float(bundle['PERIOD'])
         self.obs_values.phaser.hjd0 = float(bundle['HJD0'])
         bundle['PERIOD'].observe(lambda change: self.on_period_change(change))
