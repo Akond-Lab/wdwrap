@@ -1,8 +1,6 @@
 # coding=utf-8
-import pandas as pd
-from .config import cfg
+from .exceptions import FileFormatNotSupportedError
 from .parameters import ParameterSet
-from .param import Parameter
 from .drivers import MPAGE
 #from .parameter import MPAGE
 
@@ -10,14 +8,7 @@ from .drivers import MPAGE
 from .config import cfg
 
 
-
 class Bundle(ParameterSet):
-    class FileFormatError(Exception):
-        pass
-    class FileFormatMultipleSetsError(FileFormatError):
-        pass
-    class FileFormatNotSupportedError(FileFormatError):
-        pass
 
     def __init__(self, wdversion=None):
         super(Bundle, self).__init__()
@@ -49,13 +40,15 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
-    def open(cls, filepath, bundleno=0):
+    def open(cls, filepath, bundleno=0, wdversions=('2015', '2007')):
         from .io import Reader_lcin
-        reader = Reader_lcin(filepath)
-        bundle = reader.bundles[bundleno]
-        if len(bundle.lines) > 8:
-            raise cls.FileFormatNotSupportedError('Clouds and Spots not supported (yet)')
-        return bundle
+        for wdver in wdversions:
+            try:
+                reader = Reader_lcin(filepath, version=wdver)
+                bundle = reader.bundles[bundleno]
+                return bundle
+            except FileFormatNotSupportedError:
+                pass
 
     def __repr__(self):
         return '\n'.join([

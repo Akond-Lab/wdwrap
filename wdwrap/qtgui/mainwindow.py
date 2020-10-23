@@ -9,6 +9,7 @@ from PySide2.QtWidgets import (QAction, QApplication, QLabel, QDialog, QFileDial
                                QDockWidget)
 
 from wdwrap.bundle import Bundle
+from wdwrap.exceptions import FileFormatNotSupportedError, FileFormatMultipleSetsError
 from wdwrap.qtgui.container import ParentColumnContainer, Container
 from wdwrap.qtgui.icons import IconFactory
 from wdwrap.qtgui.model_curves import CurveContainer
@@ -85,12 +86,12 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def open_lcin(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open lc.in", ".", "lc.in (*)")
+        file_name, _ = QFileDialog.getOpenFileName(self.centralWidget(), "Open lc.in", "./", "lc.in (*)")
         if file_name:
             try:
                 self.project_widget.project.load_bundle(file_name)
                 logger().info(f'lc.in file opened, path: {file_name}')
-            except (ValueError, Bundle.FileFormatNotSupportedError, Bundle.FileFormatMultipleSetsError) as e:
+            except (ValueError, FileFormatNotSupportedError, FileFormatMultipleSetsError) as e:
                 logger().exception(f'lc.in file f{file_name} loading failed. Input file format error', exc_info=e)
                 msg = QMessageBox()
                 msg.setWindowTitle('File loading failed')
@@ -107,7 +108,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def open_prj(self):
-        filename, _ = QFileDialog.getOpenFileName(self, "Open Project", None, "WD Wrapper Project (*.wdw)")
+        filename, _ = QFileDialog.getOpenFileName(self, 'Open Project', './', 'WD Wrapper Project (*.wdw)')
         if filename:
             if self.open_prj_from_file(filename):
                 self.setWindowTitle(os.path.basename(filename))
@@ -115,7 +116,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_prj_as(self):
-        filename, _ = QFileDialog.getSaveFileName(self, "Save Project", None, "WD Wrapper Project (*.wdw)")
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Project", './project.wdw', "WD Wrapper Project (*.wdw)")
         if filename:
             self.project_filename = filename
             self.setWindowTitle(os.path.basename(filename))

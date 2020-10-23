@@ -9,9 +9,19 @@ import io
 import logging
 from collections import OrderedDict
 import pandas as pd
+
+import wdwrap.exceptions
 from . import drivers as p
 from .bundle import ParameterSet
 from .drivers.filestructure import FileStructure
+
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('io')
+    return _logger
 
 
 class IO(object):
@@ -180,7 +190,11 @@ class Reader_lcin(Reader):
             ln = self._read_line_no(0)
             if ln['MPAGE'].isnan():
                 break
-            b = bundle.Bundle()
+            b = bundle.Bundle(wdversion=self.version)
+            if self.version > '2007' and ln.get('KSPEV', None) is None:
+                logger().warning(
+                    'lc.in file in older format, importing file using 2007 schema, missing fields will be defaulted')
+                self.version = '2007'  # reading older version
             self._bundles.append(b)
             b.add_line(ln)
             ln = self._read_line_no(1)

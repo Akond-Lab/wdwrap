@@ -1,16 +1,31 @@
+[ ] ! plotting another columns: 5,6 (1+2+3)
+[ ] Select plotted curve (click on left? option?)
+[ ] Different color for synthetic and observed curves
+[ ] Expose Phaser parameters
+[-] Expose Resampler parameters
+[ ] RMSE calculation and display
+[ ] !favorites
+[ ] error bars (observed and residuals)
+[ ] residuals to observed df
+[ ] export dataframe
+[ ] residuals histogram (gauss fit)
+[+] read lcin.2007 into 2015
+[ ] import PiotrW format files
+[ ] synthetic curve parameters panel
+[ ] calc LC manually
+[ ] IBAND on load (from comment or user input)
+[ ] mc
+[ ] mcmc
+[ ] gradient descent
+[ ] remote jobs
+[ ] switch 2015/2017
+
 [+] add LC/RV curve
 [+] let the curve refresh after changing cuve-specific parameter
 [+] delete LC/RV curve
 [+] main curve panel
 [+] fix - curve displays wired after adding
-[ ] synthetic curve parmaetes panel
-[ ] calc LC manually
-[ ] RMSE calculation and display
-[ ] project file
+[+] project file
 [+] parameter details
-[ ] proper refresh of segments table on item change
-[ ] order of panels / default focused panel
-[ ] favotites
-[ ] plotting another columns
-[ ] mcmc
-[ ] remote jobs
+[+] proper refresh of segments table on item change
+[+] order of panels / default focused panel

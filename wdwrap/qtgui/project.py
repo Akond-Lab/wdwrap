@@ -4,8 +4,17 @@ from datetime import datetime
 
 import yaml
 
+from wdwrap.exceptions import FileFormatNotSupportedError
+
+try:
+    # try faster if exists
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
 import PySide2
 from PySide2.QtCore import QObject, Slot
+
 from wdwrap.bundle import Bundle
 from wdwrap.io import Writer_lcin
 from wdwrap.curves import LightCurve, VelocCurve
@@ -37,6 +46,9 @@ class Project(QObject):
 
     def load_bundle(self, filename):
         new_bundle = Bundle.open(filename)
+        if len(new_bundle.lines) > 8:
+            raise FileFormatNotSupportedError('Clouds and Spots not supported (yet)')
+
         self.bundle.populate_from(new_bundle)
 
     def save_bundle(self, filename):
@@ -64,7 +76,7 @@ class Project(QObject):
     def open_project(self, filename) -> bool:
         with open(filename, 'r') as f:
             try:
-                prj = yaml.load(f)
+                prj = yaml.load(f, Loader=Loader)
             except IOError:
                 logger().error(f'Loading project from YAML file {filename} failed')
                 return False

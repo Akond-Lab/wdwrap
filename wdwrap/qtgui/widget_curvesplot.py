@@ -332,7 +332,7 @@ class LightPlotWidget(WdCurvesPlotWidget):
                 errors = None
             obs_plot_result = self.ax.errorbar(
                 obs_df['ph'], obs_df['mag'], yerr=errors,
-                fmt='.', color=curve.color, alpha=0.9, markersize=4,
+                fmt='.', color=curve.color, alpha=0.4, markersize=4,
             )
             ret['obs'], ret['obs_errcaps'], ret['obs_errbars'] = obs_plot_result
             gen_at_obs = gen.get_values_at(obs_df['ph'])
@@ -439,7 +439,7 @@ class RvPlotWidget(WdCurvesPlotWidget):
                 )[0]
 
                 try:
-                    errors = obs_df[rv+'_e'],
+                    errors = obs_df[rv+'_e']
                 except LookupError:
                     errors = None
                 obs_plot_result = self.ax.errorbar(
