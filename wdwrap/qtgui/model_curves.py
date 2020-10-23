@@ -10,6 +10,13 @@ from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
 from wdwrap.qtgui.wpparameter_container import WdParameterContainer
 
+_logger = None
+def logger():
+    global _logger
+    if _logger is None:
+        import logging
+        _logger = logging.getLogger('curves model')
+    return _logger
 
 
 class CurveContainer(PropertiesAccessContainer):
@@ -80,11 +87,18 @@ class CurveValuesContainer(PropertiesAccessContainer):
 class CurveObservedContainer(CurveValuesContainer):
     def __init__(self, name, data, parent=None, columns_mapper=lambda col: col, read_only=True):
         super().__init__(name, data, parent, columns_mapper, read_only)
-        data.observe(lambda change: self.on_curve_data_change(change), 'df_version')
+        self.__handler_on_curve_data_change = lambda change: self.on_curve_data_change(change)
+        self.get_content().observe(self.__handler_on_curve_data_change, 'df_version')
+        logger().info('Curve {} created'.format(self))
 
     def on_curve_data_change(self, change):
         logger().info('Curve {} data changed - emitting signal'.format(self))
         self.sig_curve_changed.emit(self)
+
+    def terminal_clean_up(self):
+        logger().info(f'Curve {type(self)} (id:{id(self)}) deleting')
+        self.get_content().unobserve(self.__handler_on_curve_data_change, names='df_version')
+        super().terminal_clean_up()
 
     # def get_file(self):
     #     return 'self.content.plot'
@@ -157,9 +171,12 @@ class CurvesModel(ContainersTreeModel):
         to_del = [c for c in self.curves_iter()]
         for c in to_del:
             self.delete_curve_container(c)
+        self.curves = []
 
     def add_curve(self, curve: WdCurve, name: str = None):
-        """Adds curve"""
+        """
+        Adds single curve
+        """
         self.beginResetModel()
 
         if name is None:
@@ -168,20 +185,26 @@ class CurvesModel(ContainersTreeModel):
             else:
                 name = 'New Light'
         self._add_curve(curve, name)
+        self.curves.append(curve)
         self.sort_curves()
         self.endResetModel()
 
-    def add_curves_from_dict(self, curves: Mapping):
+    def add_curves(self, curves: Mapping[str, WdCurve], replace: bool):
+        """
+        Add several curves at once
+
+        Parameters
+        ----------
+        replace: delete existing curves first?
+        curves: dictionary - curve name to  `WdCurve` instance
+        """
         try:
             self.beginResetModel()
-            self.delete_all_curve_containers()
+            if replace:
+                self.delete_all_curve_containers()
             for name, c in curves.items():
-                if c['rv']:
-                    wdcurve = VelocCurve()
-                else:
-                    wdcurve = LightCurve()
-                wdcurve.from_dict(c)
-                self._add_curve(wdcurve, name)
+                self._add_curve(c, name=name)
+            self.curves += curves
             self.sort_curves()
         finally:
             self.endResetModel()

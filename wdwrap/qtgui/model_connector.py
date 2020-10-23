@@ -173,7 +173,7 @@ class TraitletsModelConnector(ModelConnector):
     def connect_model(self, model_object: HasTraits, property_name: Optional[str] = None):
         if self.model_object is not None:
             try:
-                self.model_object.unobserve(self._handler)
+                self.model_object.unobserve(self._handler, [self.model_property])
             except (AttributeError, ValueError):
                 pass
         self.model_object = model_object
@@ -188,7 +188,7 @@ class TraitletsModelConnector(ModelConnector):
     def disconnect(self):
         super().disconnect()
         if self.model_object is not None:
-            self.model_object.unobserve(self._handler)
+            self.model_object.unobserve(self._handler, [self.model_property])
 
     def set_model_value(self, value):
         try:

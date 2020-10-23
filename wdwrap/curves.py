@@ -4,6 +4,7 @@ import math
 import random
 import threading
 from collections import OrderedDict
+from concurrent.futures import CancelledError
 from typing import Optional, List
 
 import numpy as np
@@ -158,9 +159,12 @@ class CurveValues(HasTraits):
         if df is not None:
             self.dataframe = df
         else:
-            self.dataframe = pd.DataFrame(columns=[self.indep_column, *self.dep_columns])
+            self.dataframe = self._empty_dataframe()
         self.observe(lambda change: self.get_approximators.invalidate_caches(),
                      ['approx_order', 'approx_method', 'approx_periodic', 'indep_column'])
+
+    def _empty_dataframe(self):
+        return pd.DataFrame(columns=[self.indep_column, *self.dep_columns])
 
     def to_dict(self):
         return {
@@ -437,8 +441,8 @@ class WdGeneratedValues(GeneratedValues):
 
 
     def terminal_clean_up(self):
-        self.bundle.unobserve(self.__handler_bundle_value_change)
-        self.parameters.unobserve(self.__handler_bundle_value_change)
+        self.bundle.unobserve(self.__handler_bundle_value_change, names=['val'])
+        self.parameters.unobserve(self.__handler_bundle_value_change, names=['val'])
         self.unobserve_all()
         self.parameters = None
         self.bundle = None
@@ -489,14 +493,20 @@ class WdGeneratedValues(GeneratedValues):
         logger().info(f'Futures all done, collecting')
         results = []
         for f in futures:
-            result = f.result()
-            df = result.get('veloc' if self.is_rv else 'light', None)
-            if df is not None:
-                results.append(df)
+            try:
+                result = f.result()
+                df = result.get('veloc' if self.is_rv else 'light', None)
+                if df is not None:
+                    results.append(df)
+            except CancelledError:
+                pass
 
         # results = [f.result().get('veloc' if self.is_rv else 'light', None) for f in self.futures]
         # results = [r for r in results if r is not None]
-        df = pd.concat(results)
+        try:
+            df = pd.concat(results)
+        except ValueError:  # nothing to concatenate
+            df = self._empty_dataframe()
         df = df[~df.duplicated([self.indep_column])]
         df.sort_values(self.indep_column)
         df.reindex()

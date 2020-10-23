@@ -88,18 +88,26 @@ class Project(QObject):
         return ret
 
     def from_dict(self, data):
+        # should not be needed
+        self.curves_model.delete_all_curve_containers()
         try:
             self.bundle.from_dict(data['wd_parameters'])
         except LookupError:
             logger().info('Loading: no "wd_parameters" section')
             return
         try:
-            curves = data['curves']
+            curves = {}
+            for name, cdict in data['curves'].items():
+                if cdict['rv']:
+                    c = VelocCurve(bundle=self.bundle)
+                else:
+                    c = LightCurve(bundle=self.bundle)
+                c.from_dict(cdict)
+                curves[name] = c
         except LookupError:
-            logger().info('Loading: no "curves" section')
+            logger().info('Loading: no "curves" section?')
             return
-        self.curves_model.add_curves_from_dict(curves=curves)
-
+        self.curves_model.add_curves(curves=curves, replace=True)
 
 
     @Slot()

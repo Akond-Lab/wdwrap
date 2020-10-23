@@ -164,11 +164,16 @@ class ParameterSet(OrderedDict):
         """Traitlets observe (sub)set of bundle parameters"""
         for key, item in self.iter(flags_any=flags_any, flags_all=flags_all, flags_not=flags_not, classes=classes):
             item.observe(handler, names=names)
+        pass
 
-    def unobserve(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None):
+    def unobserve(self, handler, flags_any=None, flags_all=None, flags_not=None, classes=None, names=traitlets.All):
         """Traitlets observe (sub)set of bundle parameters"""
         for key, item in self.iter(flags_any=flags_any, flags_all=flags_all, flags_not=flags_not, classes=classes):
-            item.unobserve(handler)
+            # try:
+                item.unobserve(handler, names=names)
+            # except ValueError:
+            #     pass
+        pass
 
     # def __init__(self, params : Optional[Sequence[Mapping[_KT, _VT]]] = None):
     #

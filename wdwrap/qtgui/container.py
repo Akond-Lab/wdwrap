@@ -21,7 +21,7 @@ class Container(QObject):
 
     @Slot(QObject)
     def _slot_container_is_going_to_be_destroyed(self, obj: QObject):
-        logger().info(f'{obj.objectName()} is going to be destroyed')
+        logger().info(f'{type(obj)}: {obj.objectName()} (id:{id(obj)}) is going to be destroyed')
         self.terminal_clean_up()
 
     def terminal_clean_up(self):

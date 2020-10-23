@@ -71,14 +71,20 @@ class CurvesPlotWidget(FigureCanvas):
     @Slot(CurveValuesContainer)
     def on_observed_curve_changed(self, curve_values_container):
         self.logger.info(f'On observed curve change  {curve_values_container.content}: adjusting')
-        self.update_observed_curve(curve_values_container)
-        self.update_residuals_curve(curve_values_container)
+        try:
+            self.update_observed_curve(curve_values_container)
+            self.update_residuals_curve(curve_values_container)
+        except KeyError:
+            self.logger.info(f'Adjustment canceled curve  {curve_values_container.content} not found')
 
     @Slot(CurveValuesContainer)
     def on_generated_curve_changed(self, curve_values_container):
         self.logger.info(f'On generated curve change  {curve_values_container.content}: adjusting')
-        self.update_generated_curve(curve_values_container)
-        self.update_residuals_curve(curve_values_container)
+        try:
+            self.update_generated_curve(curve_values_container)
+            self.update_residuals_curve(curve_values_container)
+        except KeyError:
+            self.logger.info(f'Adjustment canceled curve  {curve_values_container.content} not found')
 
     @Slot(CurveValuesContainer)
     def on_generated_curve_invalidated(self, curve_values_container):
@@ -349,12 +355,15 @@ class RvPlotWidget(WdCurvesPlotWidget):
         super().invalidate_curve(curve_values_container)
         curve_container: CurveContainer = curve_values_container.parent()
         if curve_container.plot:
-            artists = self.curves_artists[curve_container]
-            for rv in ['rv1', 'rv2']:
-                line: Line2D = artists['gen_'+rv]
-                line.set_xdata([])
-                line.set_ydata([])
-            self.redraw_idle()
+            try:
+                artists = self.curves_artists[curve_container]
+                for rv in ['rv1', 'rv2']:
+                    line: Line2D = artists['gen_'+rv]
+                    line.set_xdata([])
+                    line.set_ydata([])
+                self.redraw_idle()
+            except LookupError:
+                pass  # no artists for container
 
     def update_generated_curve(self, curve_values_container: CurveValuesContainer):
         super().update_generated_curve(curve_values_container)

@@ -41,7 +41,7 @@ class WdParameterEditBase(QWidget):
 
     def set_parameter(self, parameter: Parameter):
         try:
-            self.wdparameter.unobserve(self._model_handler)
+            self.wdparameter.unobserve(self._model_handler, self.property)
         except (AttributeError, ValueError):
             pass
         self.wdparameter = parameter

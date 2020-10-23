@@ -16,7 +16,7 @@ class CurveKindLabel(QLabel):
 
     def connect_model(self, item_model):
         try:
-            self.iband_parameter.unobserve(self._model_handler)
+            self.iband_parameter.unobserve(self._model_handler, 'val')
         except (AttributeError, ValueError):
             pass
         self.curve_container = item_model

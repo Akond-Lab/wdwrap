@@ -145,10 +145,6 @@ class WdParameterPage(DetailsPageBase):
         if self.enabled:
             try:
                 self.wdparameter: Parameter = self.item.content
-                try:
-                    self.wdparameter.unobserve(self._value_handler)
-                except:
-                    pass
                 self.name.model_connector.connect_model(self.wdparameter)
                 self.help_str.model_connector.connect_model(self.wdparameter)
                 self.doc.model_connector.connect_model(self.wdparameter)
