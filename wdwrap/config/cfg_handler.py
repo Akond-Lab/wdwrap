@@ -20,7 +20,6 @@ class CfgHandler(ConfigParser, object):
     available for use.
     """
 
-    _defaultConfigFileName = "wdwrap.ini"
     _configFileInUse = None
     _defaultInstance = None
 
@@ -39,7 +38,13 @@ class CfgHandler(ConfigParser, object):
         @raise CfgHandlerError: If configuration file cannot be loaded
         """
         if cfg_file is None:
-            cfg_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), self._defaultConfigFileName)
+            install_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+            cfg_file = [
+                os.path.join(install_path, 'wdwrap/config/wdwrap.ini'),
+                '/etc/wdwrap/wdwrap.ini',
+                os.path.join(install_path, 'wdwrap.ini'),
+                os.path.expanduser('~/.config/wdwrap/wdwrap.ini'),
+                ]
 
         self._configFileInUse = cfg_file
         lst = self.read(self._configFileInUse)

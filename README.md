@@ -53,6 +53,27 @@ git pull
 pip install -r requirements.txt
 ```
 
+## Configuration
+The package reads configuration files in following order, overwriting duplicated settings:
+*   `<wdw-install-dir>/wdwrap/config/wdwrap.ini`
+*   `/etc/wdwrap/config/wdwrap.ini`
+*   `<wdw-install-dir>/wdwrap.ini`
+*   `~/.config/wdwrap/wdwrap.ini`
+
+After install only first one exists. In order to have own configuration file,
+one may copy the first one to one of the later destinations, then edit it. E.g.:
+```
+mkdir -p ~/.config/wdwrap
+cp ~/src/wdwrap/wdwrap/config/wdwrap.ini  ~/.config/wdwrap
+vi  ~/.config/wdwrap/wdwrap.ini
+``` 
+The only important option to be changed is the pathname to the WD `lc` executable.
+Default one is `lc2015`, overwrite it in your config file.
+
+Note that current version of WDW is designed to work with 2015 version of `lc`,
+with limited support for reading/writing lc.in files of 2007 version. 
+
+
 ## Running GUI
 ```
 cd ~/src/wdwrap 
@@ -60,8 +81,3 @@ source venv/bin/activate
 python wdwrap/qtgui/wd.py
 ```
 
-#### Server extension for jupiter GUI:
-Jupyter GUI is under construction and not usable yet
-```
-    jupyter serverextension enable voila --sys-prefix
-```
