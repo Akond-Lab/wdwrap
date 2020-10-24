@@ -16,5 +16,4 @@ matplotlib
 scipy
 setuptools
 dask[distributed]>=2.30.0
-wdwrap
 PyYAML
