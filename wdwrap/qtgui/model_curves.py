@@ -1,6 +1,6 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import logging
-from typing import Optional, List, Mapping
+from typing import Optional, List, Mapping, Generator
 
 from PySide2.QtCore import Signal, Property, QObject
 from wdwrap.curves import WdCurve, GeneratedValues, VelocCurve, LightCurve
@@ -145,7 +145,7 @@ class CurvesModel(ContainersTreeModel):
             return False
         return super().children_iter_filter(child, **kwargs)
 
-    def curves_iter(self):
+    def curves_iter(self) -> Generator[CurveContainer, None, None]:
         yield from self.children_iter(depth=0, curves=True)
 
     def build_qmodel(self):

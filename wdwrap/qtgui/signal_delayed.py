@@ -20,7 +20,16 @@ class SignalDelayedPermanentTimer:
 
     Use instances of SignalDelayedPermanentTimer as "normal" instance variables (initialized in the `__init__`)
     Subsequent calls to `emit` before signal get fired, will be grouped, `*args` will be replaced
-     by the last `emit`, while `**kwargs` will be *updated* by subsequent calls.
+    by the last `emit`, while `**kwargs` will be *updated* by subsequent calls.
+
+    Examples
+    --------
+    ```
+    >>> class A:
+    >>>     a_signal = Signal(object)
+    >>>     def __init__(self):
+    >>>         _delayed = SignalDelayedPermanentTimer(signal_to_emit=self.a_signal)
+    >>>         _delayed.emit(self)  # will emit a_signal with delay
     """
 
     class _HasSignalAndTimer(QObject):
@@ -34,7 +43,8 @@ class SignalDelayedPermanentTimer:
             super().timerEvent(event)
             self.timer_handler(event)
 
-    def __init__(self, name: Optional[str] = None, ping: int = 200, enable: bool = True) -> None:
+    def __init__(self, name: Optional[str] = None, ping: int = 200, enable: bool = True,
+                 signal_to_emit: Optional[Signal] = None) -> None:
         super().__init__()
         self.scheduled = False
         self.ping = ping
@@ -43,33 +53,37 @@ class SignalDelayedPermanentTimer:
         self.name = name
         self.arg = None
         self._timerts_ids = []
-        self.signal = self._HasSignalAndTimer(timer_handler=lambda event: self._emit_scheduled())
+        self.signal_and_timer_qobject = self._HasSignalAndTimer(timer_handler=lambda event: self._emit_scheduled())
+        if signal_to_emit is None:
+            self.signal = self.signal_and_timer_qobject.signal
+        else:
+            self.signal = signal_to_emit
         if enable:
             self.enable()
 
     def enable(self, enable: bool = True):
         for tid in self._timerts_ids:
-            self.signal.killTimer(tid)  # idle timer
+            self.signal_and_timer_qobject.killTimer(tid)  # idle timer
         self._timerts_ids = []
         if enable:
             # self._timerts_ids.append(self.signal.startTimer(0))  # idle timer
             # if self.ping != 0:
-            self._timerts_ids.append(self.signal.startTimer(self.ping))  # recurring timer
+            self._timerts_ids.append(self.signal_and_timer_qobject.startTimer(self.ping))  # recurring timer
 
     def connect(self, *args, **kwargs):
         logger().info(f'Signal {self.name} connecting')
-        self.signal.signal.connect(*args, **kwargs)
+        self.signal.connect(*args, **kwargs)
 
     def disconnect(self, *args, **kwargs):
         logger().info(f'Signal {self.name} disconnecting')
         try:
-            self.signal.signal.disconnect(*args, **kwargs)
+            self.signal.disconnect(*args, **kwargs)
         except RuntimeError:
             pass
 
     def __call__(self, arg):
         logger().info(f'Signal {self.name} called')
-        self.signal.signal(arg)
+        self.signal(arg)
 
     def emit(self, arg):
         """emit on idle"""
@@ -90,7 +104,7 @@ class SignalDelayedPermanentTimer:
             self.arg = None
             self.scheduled = False
             logger().info(f'Signal {self.name} emitting')
-            self.signal.signal.emit(arg)
+            self.signal.emit(arg)
 
 
 # class SignalDelayedSingleShotTimer(Generic[T]):

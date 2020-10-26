@@ -5,6 +5,7 @@ from datetime import datetime
 import yaml
 
 from wdwrap.exceptions import FileFormatNotSupportedError
+from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
 
 try:
     # try faster if exists
@@ -13,7 +14,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 import PySide2
-from PySide2.QtCore import QObject, Slot
+from PySide2.QtCore import QObject, Slot, Signal
 
 from wdwrap.bundle import Bundle
 from wdwrap.io import Writer_lcin
@@ -34,6 +35,8 @@ def logger():
 
 class Project(QObject):
 
+    curves_collection_changed = Signal(CurvesModel)
+
     def __init__(self, parent: typing.Optional[PySide2.QtCore.QObject] = None):
         super().__init__(parent)
 
@@ -43,6 +46,10 @@ class Project(QObject):
             VelocCurve(bundle=self.bundle),  # TODO: Initial curves
             LightCurve(bundle=self.bundle),
         ])
+        self._curves_collection_changed_delay = SignalDelayedPermanentTimer('curves collection changed',
+                                                                            signal_to_emit=self.curves_collection_changed)
+        self._curves_collection_changed_delay.emit(self.curves_model)
+
 
     def load_bundle(self, filename):
         new_bundle = Bundle.open(filename)
@@ -120,17 +127,25 @@ class Project(QObject):
             logger().info('Loading: no "curves" section?')
             return
         self.curves_model.add_curves(curves=curves, replace=True)
+        self._curves_collection_changed_delay.emit(self.curves_model)
+
 
 
     @Slot()
     def add_lc(self):
         self.curves_model.add_curve(LightCurve(bundle=self.bundle))
+        self._curves_collection_changed_delay.emit(self.curves_model)
 
     @Slot()
     def add_rv(self):
         self.curves_model.add_curve(VelocCurve(bundle=self.bundle))
+        self._curves_collection_changed_delay.emit(self.curves_model)
 
     @Slot(CurveContainer)
     def delete_curve(self, to_delete: CurveContainer):
         self.curves_model.delete_curve_container(to_delete)
+        self._curves_collection_changed_delay.emit(self.curves_model)
 
+    @Slot(CurveContainer)
+    def select_for_plotting_curve(self, to_plot: CurveContainer):
+        pass

@@ -12,7 +12,7 @@ from wdwrap.bundle import Bundle
 from wdwrap.exceptions import FileFormatNotSupportedError, FileFormatMultipleSetsError
 from wdwrap.qtgui.container import ParentColumnContainer, Container
 from wdwrap.qtgui.icons import IconFactory
-from wdwrap.qtgui.model_curves import CurveContainer
+from wdwrap.qtgui.model_curves import CurveContainer, CurvesModel
 from wdwrap.qtgui.widget_info import InfoPanelWidget
 from wdwrap.qtgui.widget_project import ProjectWidget
 from wdwrap.version import __version__
@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
 
         self.project_widget = ProjectWidget(self)
         self.setCentralWidget(self.project_widget)
+        self.project_widget.project.curves_collection_changed.connect(self.curvesCollectionChanged)
 
         self.createActions()
         self.createToolBars()
@@ -61,6 +62,11 @@ class MainWindow(QMainWindow):
         if isinstance(item, ParentColumnContainer):
             item = item.parent()
         self.delCurveAct.setEnabled(isinstance(item, CurveContainer))
+
+    @Slot(CurveContainer)
+    def curvesCollectionChanged(self, curves_model: CurvesModel):
+        self.createPlotMenu(source=curves_model)
+        # QMessageBox.information(self, 'collection changed', 'DEBUG: collection changed')
 
     def closeEvent(self, event: PySide2.QtGui.QCloseEvent):
         self.writeAppState()
@@ -252,6 +258,8 @@ class MainWindow(QMainWindow):
         self.curvesMenu.addAction(self.addLightCurveAct)
         self.curvesMenu.addAction(self.addRvCurveAct)
 
+        self.plotMenu = self.menuBar().addMenu("&Plot")
+
         self.viewMenu = self.menuBar().addMenu("&View")
         # self.viewMenu.addAction(self.qtConsoleAct)
         # self.viewMenu.addSeparator()
@@ -317,6 +325,23 @@ class MainWindow(QMainWindow):
         # self.addDockWidget(Qt.RightDockWidgetArea, dock)
         # self.viewMenu.addAction(dock.toggleViewAction())
         # self.dockRadialFit = dock
+
+    def createPlotMenu(self, source:CurvesModel):
+        self.plotMenu.clear()
+        light_curves = {}
+        rv_curves = {}
+        for c in source.curves_iter():
+            if c.is_rv():
+                rv_curves[id(c)] = c
+            else:
+                light_curves[id(c)] = c
+        for k, c in light_curves.items():
+            a = self.plotMenu.addAction(c.objectName())
+            a.setCheckable(True)
+        self.plotMenu.addSeparator()
+        for k, c in rv_curves.items():
+            a = self.plotMenu.addAction(c.objectName())
+            a.setCheckable(True)
 
     # noinspection PyTypeChecker
     def readWindowSettings(self):
