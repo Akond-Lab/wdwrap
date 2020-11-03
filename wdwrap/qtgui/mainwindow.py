@@ -1,5 +1,6 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import os
+from typing import Mapping
 
 import PySide2
 from PySide2.QtCore import QFile, Qt, QTextStream, QSettings, Slot
@@ -66,6 +67,11 @@ class MainWindow(QMainWindow):
     @Slot(CurveContainer)
     def curvesCollectionChanged(self, curves_model: CurvesModel):
         self.createPlotMenu(source=curves_model)
+        # QMessageBox.information(self, 'collection changed', 'DEBUG: collection changed')
+
+    @Slot(CurveContainer)
+    def curvesPlotChanged(self, curves_model: CurvesModel):
+        self.checkPlotInPlotMenu(source=curves_model)
         # QMessageBox.information(self, 'collection changed', 'DEBUG: collection changed')
 
     def closeEvent(self, event: PySide2.QtGui.QCloseEvent):
@@ -326,22 +332,38 @@ class MainWindow(QMainWindow):
         # self.viewMenu.addAction(dock.toggleViewAction())
         # self.dockRadialFit = dock
 
-    def createPlotMenu(self, source:CurvesModel):
+
+    def createPlotMenu(self, source: CurvesModel):
         self.plotMenu.clear()
-        light_curves = {}
-        rv_curves = {}
+        light_curves = []
+        rv_curves = []
         for c in source.curves_iter():
             if c.is_rv():
-                rv_curves[id(c)] = c
+                rv_curves.append(c)
             else:
-                light_curves[id(c)] = c
-        for k, c in light_curves.items():
-            a = self.plotMenu.addAction(c.objectName())
-            a.setCheckable(True)
-        self.plotMenu.addSeparator()
-        for k, c in rv_curves.items():
-            a = self.plotMenu.addAction(c.objectName())
-            a.setCheckable(True)
+                light_curves.append(c)
+        for c in light_curves + [None] + rv_curves:
+            if c is None:
+                self.plotMenu.addSeparator()
+            else:
+                a = self.plotMenu.addAction(c.objectName())
+                a.setData(id(c))
+                a.setCheckable(True)
+                c.content.observe(lambda change: self.curvesPlotChanged(source))
+        self.checkPlotInPlotMenu(source)
+
+    def _plotMenuCurvesActions(self) -> Mapping[int, QAction]:
+        """plotMenu actions indexed by Data: CurveContainer's id """
+        return {a.data(): a for a in  self.plotMenu.actions()}
+
+    def checkPlotInPlotMenu(self, source: CurvesModel):
+        actions = self._plotMenuCurvesActions()
+        for c in source.curves_iter():
+            try:
+                menu_action = actions[id(c)]
+                menu_action.setChecked(c.plot)
+            except KeyError:
+                pass
 
     # noinspection PyTypeChecker
     def readWindowSettings(self):

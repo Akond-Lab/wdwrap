@@ -24,12 +24,20 @@ class SignalDelayedPermanentTimer:
 
     Examples
     --------
-    ```
+    Connecting to slot
+    >>> class A:
+    >>>     def __init__(self):
+    >>>         self._delayed = SignalDelayedPermanentTimer(connect=self.handler)
+    >>>         self._delayed.emit(self)  # will emit a_signal with delay
+    >>>     @Slot
+    >>>     def handler(self):
+    >>>         print('signal handled')
+    Passing to other signal
     >>> class A:
     >>>     a_signal = Signal(object)
     >>>     def __init__(self):
-    >>>         _delayed = SignalDelayedPermanentTimer(signal_to_emit=self.a_signal)
-    >>>         _delayed.emit(self)  # will emit a_signal with delay
+    >>>         self._delayed = SignalDelayedPermanentTimer(signal_to_emit=self.a_signal)
+    >>>         self._delayed.emit(self)  # will emit a_signal with delay
     """
 
     class _HasSignalAndTimer(QObject):
@@ -44,7 +52,7 @@ class SignalDelayedPermanentTimer:
             self.timer_handler(event)
 
     def __init__(self, name: Optional[str] = None, ping: int = 200, enable: bool = True,
-                 signal_to_emit: Optional[Signal] = None) -> None:
+                 signal_to_emit: Optional[Signal] = None, connect=None) -> None:
         super().__init__()
         self.scheduled = False
         self.ping = ping
@@ -58,6 +66,8 @@ class SignalDelayedPermanentTimer:
             self.signal = self.signal_and_timer_qobject.signal
         else:
             self.signal = signal_to_emit
+        if connect is not None:
+            self.signal.connect(connect)
         if enable:
             self.enable()
 

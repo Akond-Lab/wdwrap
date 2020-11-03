@@ -20,7 +20,7 @@ from wdwrap.qtgui.widget_colorpicker import SelectColorButton
 from wdwrap.qtgui.widget_curvekindlabel import CurveKindLabel
 from wdwrap.qtgui.widget_pandas import WidgetPandas
 from wdwrap.qtgui.widget_wdparameter import WdParameterMinEdit, WdParameterMaxEdit, WdParameterValueEdit
-from wdwrap.qtgui.wpparameter_container import WdParameterContainer
+from wdwrap.qtgui.model_wpparameter import WdParameterContainer
 
 _logger = None
 def logger():
@@ -216,7 +216,8 @@ class CurveMainPage(DetailsPageBase):
 
         group_1 = QGroupBox('Plot')
         grp_layout = QHBoxLayout()
-        self.plot_button = QCheckBox('Visible')
+        # self.plot_button = QCheckBox('Visible')
+        self.plot_button = connected_widget(QCheckBox, QObjectModelConnector(), 'setChecked', 'stateChanged', text='Plot')
         self.color_button = SelectColorButton()
         self.color_button.model_connector = TraitletsModelConnector(property_name='color')
         # self.color_button.setText('Color')
@@ -256,6 +257,8 @@ class CurveMainPage(DetailsPageBase):
                 if isinstance(self.item, CurveContainer):
                     self.curve = self.item.content
                     self.color_button.model_connector.connect_model(self.curve)
+                    self.plot_button.model_connector.connect_model(self.item, self.item.set_plot,
+                                                                   self.item.sig_plot_changed, value=self.item.plot)
                     self.curvename.model_connector.connect_model(self.item, self.item.setObjectName,
                                                                  self.item.objectNameChanged, self.item.objectName())
                     self.filename.model_connector.connect_model(self.curve.obs_values)

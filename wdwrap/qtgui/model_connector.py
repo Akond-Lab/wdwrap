@@ -96,8 +96,9 @@ class QObjectModelConnector(ModelConnector):
         self.model_signal = model_signal
         self.model_signal.connect(self._on_model_changed_signal)
         try:
-            self.set_view_value(value)
-        except AttributeError:
+            if value is not None:
+                self.set_view_value(value)
+        except (AttributeError, TypeError):
             pass
 
     def disconnect(self):
@@ -245,8 +246,8 @@ def connected_widget(widget_class, connector_object, view_slot: str, view_signal
         checkbox.model_connector.connect_model(model_object)
     creates checkbox connected to `model_object.my_flag`
     """
-    def _constructor(self):
-        widget_class.__init__(self)
+    def _constructor(self, **kwargs):
+        widget_class.__init__(self, **kwargs)
         HasModelConnector.__init__(self)
 
     subclass = type('ConnectedWidget',

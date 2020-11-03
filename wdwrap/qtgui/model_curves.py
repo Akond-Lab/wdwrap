@@ -8,7 +8,7 @@ from wdwrap.lazylogger import logger
 from wdwrap.qtgui.container import Container, PropertiesAccessContainer, ParentColumnContainer
 from wdwrap.qtgui.model_containerstree import ContainersTreeModel, ColumnsPreset
 from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
-from wdwrap.qtgui.wpparameter_container import WdParameterContainer
+from wdwrap.qtgui.model_wpparameter import WdParameterContainer
 
 _logger = None
 def logger():
@@ -36,6 +36,8 @@ class CurveContainer(PropertiesAccessContainer):
     def get_plot(self):
         return self.content.plot
     def set_plot(self, val):
+        if isinstance(val, int):
+            val = (val != 0)
         self.content.plot = val
 
     plot = Property(bool, get_plot, set_plot)
@@ -47,9 +49,11 @@ class CurveContainer(PropertiesAccessContainer):
     def get_fit(self):
         return self.content.fit
     def set_fit(self, val):
+        if isinstance(val, int):
+            val = (val != 0)
         self.content.fit = val
 
-    fit = Property(bool, get_plot, set_plot)
+    fit = Property(bool, get_fit, set_fit)
     sig_fit_changed = Signal(bool)
 
     def on_fit_changed(self, change):
@@ -211,7 +215,7 @@ class CurvesModel(ContainersTreeModel):
 
     def _add_curve(self, curve: WdCurve, name: str):
         """Adds curve on the end of list, use sort_curves to restore proper order"""
-        c = CurveContainer(name, curve, self.display_root)
+        c = CurveContainer(name, curve, self.display_root, read_only=False)
         ParentColumnContainer('plot', c)
         ParentColumnContainer('fit', c)
         g = CurveGeneratedContainer('synthetic', curve.gen_values, c)

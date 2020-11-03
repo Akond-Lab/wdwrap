@@ -1,7 +1,7 @@
 #  Copyright (c) 2020. Mikolaj Kaluszynski et. al. CAMK, AkondLab
 import logging
 from collections import OrderedDict
-from typing import Mapping, Any
+from typing import Mapping, Any, Generator
 
 import numpy as np
 from PySide2.QtCore import Slot, Qt, QSize, QModelIndex
@@ -15,6 +15,7 @@ from matplotlib.lines import Line2D
 
 from wdwrap.curves import WdCurve, WdGeneratedValues, ObservedValues
 from wdwrap.qtgui.model_curves import CurvesModel, CurveValuesContainer, CurveContainer
+from wdwrap.qtgui.signal_delayed import SignalDelayedPermanentTimer
 
 _logger = None
 def logger():
@@ -47,7 +48,7 @@ class CurvesPlotWidget(FigureCanvas):
         toolbar2.addAction("x")
         # toolbar2.setIconSize((10,10))
 
-    def curves_iter(self, **kwargs):
+    def curves_iter(self, **kwargs) -> Generator[CurveContainer, None, None]:
         yield from []
 
     def plot_curves(self):
@@ -55,6 +56,7 @@ class CurvesPlotWidget(FigureCanvas):
         for curve in self.curves_iter(plot=True):
             shapes: Mapping[Artist] = self.plot_curve(curve)
             self.curves_artists[curve] = shapes
+
 
     def redraw_idle(self):
         self.draw_idle()
@@ -95,17 +97,18 @@ class CurvesPlotWidget(FigureCanvas):
             curve.gen_values.refresh()
             self.logger.info(f'Forced curve {curve_values_container} refresh')
 
-    @Slot(CurveContainer)
-    def on_curve_plot_changed(self, curve_container: CurveContainer):
-        curve: WdCurve = curve_container.content
-        artists = self.curves_artists[curve_container]
-        plot = curve_container.plot
-        if plot and len(artists) == 0:
-            self.plot_curve(curve_container)
-        else:
-            for a in artists.values():
-                a.set_visible(plot)
-        self.redraw_idle()
+    # Change: 'plot' is handled via traitletes observing
+    # @Slot(CurveContainer)
+    # def on_curve_plot_changed(self, curve_container: CurveContainer):
+    #     curve: WdCurve = curve_container.content
+    #     artists = self.curves_artists[curve_container]
+    #     plot = curve_container.plot
+    #     if plot and len(artists) == 0:
+    #         self.plot_curve(curve_container)
+    #     else:
+    #         for a in artists.values():
+    #             a.set_visible(plot)
+    #     self.redraw_idle()
 
     @Slot(CurveContainer)
     def on_curve_color_changed(self, curve_container: CurveContainer):
@@ -141,7 +144,7 @@ class CurvesPlotWidget(FigureCanvas):
         pass
 
     def plot_curve(self, curve_container: CurveContainer):
-        curve_container.sig_plot_changed.connect(self.on_curve_plot_changed)
+        # curve_container.sig_plot_changed.connect(self.on_curve_plot_changed)
         if curve_container.plot:
             g: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'synthetic')
             o: CurveValuesContainer = curve_container.findChild(CurveValuesContainer, 'observed')
@@ -162,6 +165,7 @@ class CurvesPlotWidget(FigureCanvas):
 
 class WdCurvesPlotWidget(CurvesPlotWidget):
     def __init__(self, model: CurvesModel):
+        self.refresh_delayed_signal = SignalDelayedPermanentTimer(connect=self.refresh_from_model)
         self.curves_model = model
         self.curves_model.rowsRemoved.connect(self._on_row_removed)
         self.curves_model.rowsInserted.connect(self._on_row_inserted)
@@ -186,8 +190,12 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
     @Slot()
     def _on_model_reset(self):
         logger().info(f'model curves have been reset')
-        self.refresh_from_model()
+        self.refresh_from_model_delayed()
 
+    def refresh_from_model_delayed(self):
+        self.refresh_delayed_signal.emit(self)
+
+    @Slot()
     def refresh_from_model(self):
         """Forgets everything, reads model and plots its curves"""
         self.clear_axies()
@@ -198,11 +206,11 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.ax_resid.clear()
         self._prepare_axis()
 
-    def curves_filter(self, curve: WdCurve, **kwargs) -> bool:
+    def curves_filter(self, curve: CurveContainer, **kwargs) -> bool:
         for_plotting = kwargs.get('plot', False)
         return curve.plot or not for_plotting  #  either always True or curve.plot if for plotting
 
-    def curves_iter(self, **kwargs):
+    def curves_iter(self, **kwargs) -> Generator[CurveContainer, None, None]:
         for curve_container in self.curves_model.curves_iter():
             if self.curves_filter(curve_container, **kwargs):
                 yield curve_container
@@ -219,6 +227,10 @@ class WdCurvesPlotWidget(CurvesPlotWidget):
         self.ax_resid.axvspan(1.0, 100.0, alpha=span_alpha, in_layout=False)
         super().plot_curves()
         self.redraw_idle()
+        # observe `plot' attribute of all (plotted and not) curves
+        for curve in self.curves_iter():
+            curve.content.observe(lambda change: self.refresh_from_model_delayed(), 'plot')
+
 
     def redraw_idle(self):
         self.ax.relim(visible_only=True)
