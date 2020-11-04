@@ -226,6 +226,7 @@ class HasModelConnector:
         self.model_connector.connect_view(slot, signal)
 
     def get_slot_and_signal_for_view(self):
+        # """Overwrite this for specific widgets"""
         return self.view_slot, self.view_signal
 
 class ConnectedCheckableAction(QAction, HasModelConnector):
@@ -234,6 +235,8 @@ class ConnectedCheckableAction(QAction, HasModelConnector):
         QAction.__init__(self, *args, **kwargs)
         HasModelConnector.__init__(self)
         self.setCheckable(True)
+        self.view_slot = self.setChecked
+        self.view_signal = self.toggled
 
 
 def connected_widget(widget_class, connector_object, view_slot: str, view_signal: Optional[str], **kwargs):

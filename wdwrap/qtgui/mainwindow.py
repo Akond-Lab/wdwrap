@@ -13,6 +13,7 @@ from wdwrap.bundle import Bundle
 from wdwrap.exceptions import FileFormatNotSupportedError, FileFormatMultipleSetsError
 from wdwrap.qtgui.container import ParentColumnContainer, Container
 from wdwrap.qtgui.icons import IconFactory
+from wdwrap.qtgui.model_connector import ConnectedCheckableAction, TraitletsModelConnector
 from wdwrap.qtgui.model_curves import CurveContainer, CurvesModel
 from wdwrap.qtgui.widget_info import InfoPanelWidget
 from wdwrap.qtgui.widget_project import ProjectWidget
@@ -346,24 +347,29 @@ class MainWindow(QMainWindow):
             if c is None:
                 self.plotMenu.addSeparator()
             else:
-                a = self.plotMenu.addAction(c.objectName())
-                a.setData(id(c))
-                a.setCheckable(True)
-                c.content.observe(lambda change: self.curvesPlotChanged(source))
-        self.checkPlotInPlotMenu(source)
+                action = ConnectedCheckableAction(c.objectName())
+                connector = TraitletsModelConnector('plot')
+                action.model_connector = connector
+                connector.connect_model(c.content)
+                self.plotMenu.addAction(action)
+                # a = self.plotMenu.addAction(c.objectName())
+                # a.setData(id(c))
+                # a.setCheckable(True)
+                # c.content.observe(lambda change: self.curvesPlotChanged(source))
+        # self.checkPlotInPlotMenu(source)
 
-    def _plotMenuCurvesActions(self) -> Mapping[int, QAction]:
-        """plotMenu actions indexed by Data: CurveContainer's id """
-        return {a.data(): a for a in  self.plotMenu.actions()}
+    # def _plotMenuCurvesActions(self) -> Mapping[int, QAction]:
+    #     """plotMenu actions indexed by Data: CurveContainer's id """
+    #     return {a.data(): a for a in  self.plotMenu.actions()}
 
-    def checkPlotInPlotMenu(self, source: CurvesModel):
-        actions = self._plotMenuCurvesActions()
-        for c in source.curves_iter():
-            try:
-                menu_action = actions[id(c)]
-                menu_action.setChecked(c.plot)
-            except KeyError:
-                pass
+    # def checkPlotInPlotMenu(self, source: CurvesModel):
+    #     actions = self._plotMenuCurvesActions()
+    #     for c in source.curves_iter():
+    #         try:
+    #             menu_action = actions[id(c)]
+    #             menu_action.setChecked(c.plot)
+    #         except KeyError:
+    #             pass
 
     # noinspection PyTypeChecker
     def readWindowSettings(self):

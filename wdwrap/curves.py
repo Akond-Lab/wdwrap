@@ -674,6 +674,7 @@ class WdCurve(Curve):
     plot = Bool(default_value=True)
     fit = Bool(default_value=False)
     color = Unicode('#000000')
+    # color2 = Unicode('#000000')
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
