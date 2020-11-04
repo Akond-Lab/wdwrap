@@ -25,6 +25,14 @@ def logger():
         _logger = logging.getLogger('curvplot')
     return _logger
 
+# constants for plotting
+line_width = 1
+line_alpha = 1.0
+obs_points_size = 4
+obs_points_alpha = 0.4
+gen_points_size = 2
+gen_points_alpha = 1.0
+line_points = 500
 
 class NavigationToolbar (NavigationToolbar2QT):
     toolitems = [t for t in NavigationToolbar2QT.toolitems
@@ -119,9 +127,12 @@ class CurvesPlotWidget(FigureCanvas):
         if curve.is_rv():
             return
         artists = self.curves_artists[curve_container]
-        for a in artists.values():
+        for k, a in artists.items():
             try:
-                a.set_color(curve.color)
+                if k.startswith('obs') or k.startswith('resid'):
+                    a.set_color(curve.color_obs)
+                else:
+                    a.set_color(curve.color)
             except AttributeError:
                 pass
         self.redraw_idle()
@@ -153,14 +164,14 @@ class CurvesPlotWidget(FigureCanvas):
             g.sig_curve_invalidated.connect(self.on_generated_curve_invalidated)
             o.sig_curve_changed.connect(self.on_observed_curve_changed)
             curve = curve_container.content
-            curve.observe(lambda change: self.update_curve_color(curve_container), 'color')
+            curve.observe(lambda change: self.update_curve_color(curve_container), ['color', 'color_obs'])
             curve.gen_values.refresh()
         return {}
 
-    def _xy_for_generated_curve(self, generated: WdGeneratedValues):
-        x = np.linspace(-0.1, 1.1, 600)
-        y = generated.get_values_at(x % 1.0)
-        return x, y
+    def _xy_for_generated_curve(self, generated: WdGeneratedValues, number_of_points=600):
+        x = np.linspace(-0.1, 1.1, number_of_points)
+        xx, yy = generated.get_combined_values(indep_var_values=x)
+        return xx, yy
 
 
 class WdCurvesPlotWidget(CurvesPlotWidget):
@@ -284,7 +295,7 @@ class LightPlotWidget(WdCurvesPlotWidget):
             line: Line2D = artists['gen']
             line.set_xdata(gen_df['ph'])
             line.set_ydata(gen_df['mag'])
-            x, y = self._xy_for_generated_curve(generated)
+            x, y = self._xy_for_generated_curve(generated, number_of_points=line_points)
             line: Line2D = artists['gen_approx']
             line.set_xdata(x)
             line.set_ydata(y['mag'])
@@ -325,17 +336,7 @@ class LightPlotWidget(WdCurvesPlotWidget):
         ret = {}
         if curve_container.plot:
             curve: WdCurve = curve_container.content
-            gen = curve.gen_values
-            gen_df = gen.get_values_at()
-            x, y = self._xy_for_generated_curve(generated=gen)
-            ret['gen_approx'] = self.ax.plot(
-                x, y['mag'],
-                '-', color=curve.color, alpha=0.4,
-            )[0]
-            ret['gen'] = self.ax.plot(
-                gen_df['ph'], gen_df['mag'],
-                '.', markersize=2, color=curve.color,
-            )[0]
+            #  observed
             obs = curve.obs_values
             obs_df = obs.get_values_at()
             try:
@@ -344,14 +345,27 @@ class LightPlotWidget(WdCurvesPlotWidget):
                 errors = None
             obs_plot_result = self.ax.errorbar(
                 obs_df['ph'], obs_df['mag'], yerr=errors,
-                fmt='.', color=curve.color, alpha=0.4, markersize=4,
+                fmt='.', color=curve.color_obs, alpha=obs_points_alpha, markersize=obs_points_size,
             )
             ret['obs'], ret['obs_errcaps'], ret['obs_errbars'] = obs_plot_result
+            #  synthetic
+            gen = curve.gen_values
+            gen_df = gen.get_values_at()
+            x, y = self._xy_for_generated_curve(generated=gen, number_of_points=line_points)
+            ret['gen_approx'] = self.ax.plot(
+                x, y['mag'],
+                '-', color=curve.color, alpha=line_alpha,  lw=line_width, zorder=4,
+            )[0]
+            ret['gen'] = self.ax.plot(
+                gen_df['ph'], gen_df['mag'],
+                '.', markersize=gen_points_size, alpha=gen_points_alpha, color=curve.color, zorder=5,
+            )[0]
+            #  residua
             gen_at_obs = gen.get_values_at(obs_df['ph'])
             resid_at_obs = obs_df['mag'] - gen_at_obs['mag']
             resid_plot_result = self.ax_resid.errorbar(
                 obs_df['ph'], resid_at_obs, yerr=errors,
-                fmt='.', color=curve.color, alpha=0.9, markersize=4,
+                fmt='.', color=curve.color_obs, alpha=obs_points_alpha, markersize=obs_points_size,
             )
             ret['resid'], ret['resid_errcaps'], ret['resid_errbars'] = resid_plot_result
 
@@ -441,28 +455,30 @@ class RvPlotWidget(WdCurvesPlotWidget):
             obs_df = obs.get_values_at()
             gen_at_obs = gen.get_values_at(obs_df['ph'])
             for rv, color in [('rv1', 'red'), ('rv2', 'blue')]:
-                ret['gen_approx_'+rv] = self.ax.plot(
-                    x_genline, y_genline[rv],
-                    '-', color=color, alpha=0.4,
-                )[0]
-                ret['gen_'+rv] = self.ax.plot(
-                    gen_df['ph'], gen_df[rv],
-                    '.', markersize=2, color=color,
-                )[0]
-
+                #  observed
                 try:
                     errors = obs_df[rv+'_e']
                 except LookupError:
                     errors = None
                 obs_plot_result = self.ax.errorbar(
                     obs_df['ph'], obs_df[rv], yerr=errors,
-                    fmt='.', color=color, alpha=0.9, markersize=4,
+                    fmt='.', color=color, alpha=0.8, markersize=4,
                 )
                 ret['obs_'+rv], ret['obs_errcaps_'+rv], ret['obs_errbars_'+rv] = obs_plot_result
+                #  synthetic
+                ret['gen_approx_'+rv] = self.ax.plot(
+                    x_genline, y_genline[rv],
+                    '-', color='black', alpha=0.5,
+                )[0]
+                ret['gen_'+rv] = self.ax.plot(
+                    gen_df['ph'], gen_df[rv],
+                    '.', markersize=2, color='black',
+                )[0]
+                #  residua
                 resid_at_obs = obs_df[rv] - gen_at_obs[rv]
                 resid_plot_result = self.ax_resid.errorbar(
                     obs_df['ph'], resid_at_obs, yerr=errors,
-                    fmt='.', color=color, alpha=0.9, markersize=4,
+                    fmt='.', color=color, alpha=0.8, markersize=4,
                 )
                 ret['resid_'+rv], ret['resid_errcaps_'+rv], ret['resid_errbars_'+rv] = resid_plot_result
 

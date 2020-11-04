@@ -219,12 +219,15 @@ class CurveMainPage(DetailsPageBase):
         # self.plot_button = QCheckBox('Visible')
         self.plot_button = connected_widget(QCheckBox, QObjectModelConnector(), 'setChecked', 'stateChanged', text='Plot')
         self.color_button = SelectColorButton()
+        self.color_button_obs = SelectColorButton()
         self.color_button.model_connector = TraitletsModelConnector(property_name='color')
+        self.color_button_obs.model_connector = TraitletsModelConnector(property_name='color_obs')
         # self.color_button.setText('Color')
         grp_layout.addWidget(self.plot_button)
         grp_layout.addStretch()
-        grp_layout.addWidget(QLabel('Color'))
+        grp_layout.addWidget(QLabel('Colors'))
         grp_layout.addWidget(self.color_button)
+        grp_layout.addWidget(self.color_button_obs)
         group_1.setLayout(grp_layout)
         layout.addWidget(group_1)
 
@@ -257,6 +260,7 @@ class CurveMainPage(DetailsPageBase):
                 if isinstance(self.item, CurveContainer):
                     self.curve = self.item.content
                     self.color_button.model_connector.connect_model(self.curve)
+                    self.color_button_obs.model_connector.connect_model(self.curve)
                     self.plot_button.model_connector.connect_model(self.item, self.item.set_plot,
                                                                    self.item.sig_plot_changed, value=self.item.plot)
                     self.curvename.model_connector.connect_model(self.item, self.item.setObjectName,

@@ -1,7 +1,7 @@
 [ ] ! plotting another columns: 5,6 (1+2+3)
 [ ] Checking if LC is properly installed + info
-[ ] Select plotted curve (click on left? option?)
-[ ] Different color for synthetic and observed curves
+[x] Select plotted curve (Plot menu)
+[x] Different color for synthetic and observed curves
 [ ] Expose Phaser parameters
 [-] Expose Resampler parameters
 [ ] RMSE calculation and display

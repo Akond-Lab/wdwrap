@@ -224,17 +224,37 @@ class CurveValues(HasTraits):
                     logger().error(f'Unknown interpolation method "{self.approx_method}"')
         return ret
 
-    # @functools.lru_cache()
+    def get_combined_values(self, indep_var_values=None):
+        """
+        Returns dataframe of actual values supplemented with approximated values at specified points.
+        Used to ensure density of plots
+        Parameters
+        ----------
+        indep_var_values: points to add
+
+        Returns
+        -------
+        (x, df) corresponding independent variable values (phase) and combined dataframe
+        """
+        approx_df = self.get_values_at(indep_var_values)  # calc approx values
+        approx_df = approx_df.append(self.df, ignore_index=True)  # combine with existing
+        approx_df.sort_values(self.indep_column, inplace=True)
+        return approx_df[self.indep_column], approx_df
+
+    #@functools.lru_cache()
     def get_values_at(self, indep_var_values=None):
         """Curve values at specified points
 
         Uses approximation, returns DataFrame.
-        If indep_var_values is None, returns values without approximation"""
+        If indep_var_values is None, returns values without approximation
+        If `combine_with_generated` is true, include actual points as well as approximated in the result
+        """
         if indep_var_values is None:
             return self.df
 
         approx = self.get_approximators()
         df = pd.DataFrame(indep_var_values, columns=[self.indep_column])
+        indep_var_values = indep_var_values % 1.0  # dirty treating indep_column as phase (will fail for hjd)
         for col, a in approx.items():
             df[col] = a(indep_var_values)
         return df
@@ -674,11 +694,11 @@ class WdCurve(Curve):
     plot = Bool(default_value=True)
     fit = Bool(default_value=False)
     color = Unicode('#000000')
-    # color2 = Unicode('#000000')
+    color_obs = Unicode('#FF0000')
 
     def __init__(self, *args, bundle: Bundle = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.color = f'#{random.randint(0, 0xffffff):06x}'
+        self.color_obs = f'#{random.randint(0, 0xffffff):06x}'
         if bundle is None:
             bundle = Bundle.default_binary()
         self.gen_values = WdGeneratedValues(bundle=bundle, rv=self.is_rv())
@@ -690,6 +710,7 @@ class WdCurve(Curve):
             'rv': self.is_rv(),
             'plot': self.plot,
             'color': self.color,
+            'color obs': self.color_obs,
             'fit': self.fit,
         }
         ret.update(super().to_dict())
@@ -700,6 +721,10 @@ class WdCurve(Curve):
         self.plot = d['plot']
         self.fit = d['fit']
         self.color = d['color']
+        try:
+            self.color_obs = d['color obs']
+        except KeyError:
+            pass
 
 
     def read_bundle(self, bundle: ParameterSet, set_fit=False):
